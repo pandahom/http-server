@@ -14,9 +14,17 @@ const srv_state_e transition_table[SRV_STATE_COUNT][SRV_EVENT_COUNT] = {
     }
 };
 
-int on_error_server(server_ctx_t *server) {
+static int on_error_server(server_ctx_t *server) {
     close(server->fd);
-    printf("Terminating Program ....\n");
+    printf("Terminating Program (Waiting for threads to be finished) ....\n");
+
+    pthread_mutex_lock(&mutex);
+
+    while (num_active_clients > 0)
+        pthread_cond_wait(&cond, &mutex);
+
+    pthread_mutex_unlock(&mutex);
+
     return FAIL;
 }
 
