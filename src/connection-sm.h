@@ -26,6 +26,6 @@ typedef struct {
     conn_event_e event_trigger;
 } conn_sm_t;
 
-extern const conn_state_e transition_table_cn[CONN_STATE_COUNT][CONN_EVENT_COUNT];
+void *handle_conn_states(void *arg);
 
 #endif

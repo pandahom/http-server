@@ -18,6 +18,10 @@
 #define CYAN         "\033[1;36m"
 #define DEFAULT      "\033[0m"
 
+extern uint16_t num_active_clients;
+extern pthread_mutex_t mutex;
+extern pthread_cond_t cond;
+
 
 #define MAX_ADDR_LEN INET6_ADDRSTRLEN
 #define MAX_RECEIVE_BYTES   (5 * 1024)

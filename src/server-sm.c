@@ -1,7 +1,10 @@
 #include "server.h"
 #include <pthread.h>
 
-const srv_state_e transition_table[SRV_STATE_COUNT][SRV_EVENT_COUNT] = {
+#define state_transit(sm_ptr)\
+    (sm_ptr)->current_state = transition_table_server[(sm_ptr)->current_state][(sm_ptr)->event_trigger]
+
+static const srv_state_e transition_table_server[SRV_STATE_COUNT][SRV_EVENT_COUNT] = {
     [SRV_STATE_INIT] = {
         [SRV_EVENT_CONSTRUCTED] = SRV_STATE_LISTENING
     },

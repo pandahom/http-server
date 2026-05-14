@@ -22,11 +22,6 @@ typedef struct {
     srv_event_e event_trigger;
 } srv_sm_t;
 
-extern const srv_state_e transition_table[SRV_STATE_COUNT][SRV_EVENT_COUNT];
-
-#define state_transit(sm_ptr)\
-    (sm_ptr)->current_state = transition_table[(sm_ptr)->current_state][(sm_ptr)->event_trigger]
-
 int handle_srv_states(void);
 
 #endif
