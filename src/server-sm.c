@@ -32,7 +32,6 @@ int handle_srv_states(void) {
     int ret = OK;
     server_ctx_t server   = {
             .sm = { .current_state = SRV_STATE_INIT},
-            .backlog = 1
     };
     srv_sm_t *server_sm = &server.sm;
     client_ctx_t *new_con  = NULL;
@@ -44,7 +43,7 @@ int handle_srv_states(void) {
     while (true) {
         switch (server_sm->current_state) {
             case SRV_STATE_INIT:
-                construct_server(&server, port, ip_address, server.backlog);
+                construct_server(&server, port, ip_address, 5);
                 break;
             case SRV_STATE_LISTENING:
                 new_con = accept_connection(&server);
@@ -53,9 +52,7 @@ int handle_srv_states(void) {
                 init_client_connection_thread(new_con, &server);
                 break;
             case SRV_STATE_ERROR:
-                // TODO: Handle Threads on error too
                 ret = on_error_server(&server);
-                free(new_con);
                 goto done;
             default:
                 break;
