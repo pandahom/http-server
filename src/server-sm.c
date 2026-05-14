@@ -28,7 +28,6 @@ int handle_srv_states(void) {
     };
     srv_sm_t *server_sm = &server.sm;
     client_ctx_t *new_con  = NULL;
-    pthread_t new_th;
 
 
     char *ip_address = "127.0.0.4";
@@ -43,10 +42,7 @@ int handle_srv_states(void) {
                 new_con = accept_connection(&server);
                 break;
             case SRV_STATE_ACCEPTED:
-                new_con->sm.current_state = CONN_STATE_ACCEPTED;
-                server_sm->event_trigger = SRV_EVENT_RESET;
-                pthread_create(&new_th, NULL, handle_conn_states, new_con);
-                pthread_detach(new_th);
+                init_client_connection_thread(new_con, &server);
                 break;
             case SRV_STATE_ERROR:
                 // TODO: Handle Threads on error too

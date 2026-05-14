@@ -1,4 +1,9 @@
 #include "server.h"
+#include <pthread.h>
+
+uint16_t num_active_clients = 0;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 struct sockaddr_storage populate_server_address(in_port_t port, char *ip_address) {
     struct sockaddr_storage address = {0};
@@ -102,8 +107,32 @@ client_ctx_t *accept_connection(server_ctx_t *server) {
 
     conn_ctx->readable_format.port = ntohs(get_port(&conn_ctx->address));
 
+    pthread_mutex_lock(&mutex);
+    num_active_clients++;
+    pthread_mutex_unlock(&mutex);
+
     printf("Received connection from %s:%u\n", conn_ctx->readable_format.ip, conn_ctx->readable_format.port);
 
     return conn_ctx;
 }
 
+void init_client_connection_thread(client_ctx_t *new_con, server_ctx_t *server) {
+    int rv = OK;
+    pthread_t new_th;
+
+    new_con->sm.current_state = CONN_STATE_ACCEPTED;
+    rv = pthread_create(&new_th, NULL, handle_conn_states, new_con);
+
+    if (rv != OK) {
+        // TODO: terminate client ctx
+        ERR_LOG("Could not create a new thread.");
+    }
+
+    rv = pthread_detach(new_th);
+    if (rv != OK) {
+        // TODO: terminate client ctx
+        ERR_LOG("Could not set detach on new thread.");
+    }
+
+    server->sm.event_trigger = SRV_EVENT_RESET;
+}
