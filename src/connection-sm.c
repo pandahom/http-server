@@ -31,10 +31,10 @@ void *handle_conn_states(void *arg) {
     while (true) {
         switch (conn_ctx->sm.current_state) {
             case CONN_STATE_ACCEPTED:
-                //receive_msg(conn_ctx);
+                receive_msg(conn_ctx);
                 break;
             case CONN_STATE_REQ_PARSING:
-                //send_msg(conn_ctx);
+                parse_request(conn_ctx);
                 break;
             case CONN_STATE_RESP_CONSTRUCTING:
                 break;

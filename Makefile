@@ -3,17 +3,27 @@ CFLAGS 			:= -Werror -Wall -Wextra -c -g
 
 BUILD_DIR 	 	:= build
 SRC_DIR 	 	:= src
+DS_DIR			:= src/ds
+
+
+DS 				:= $(DS_DIR)/linked-list.c \
+				   $(DS_DIR)/ht.c
 
 SRC 			:= 	$(SRC_DIR)/server-sm.c \
 					$(SRC_DIR)/main.c   \
 				   $(SRC_DIR)/server.c \
 				   $(SRC_DIR)/conn-client.c \
-				   $(SRC_DIR)/connection-sm.c
+				   $(SRC_DIR)/connection-sm.c \
+				   $(SRC_DIR)/request-handler.c
+
  HEADER_FILES	:= $(SRC_DIR)/common.h \
 				   $(SRC_DIR)/server-sm.h \
 				   $(SRC_DIR)/server.h \
 				   $(SRC_DIR)/connection-sm.h \
-				   $(SRC_DIR)/conn-client.h
+				   $(SRC_DIR)/conn-client.h \
+				   $(SRC_DIR)/request-handler.h \
+				   $(DS_DIR)/linked-list.h \
+				   $(DS_DIR)/ht.h
 
 
 OBJ	   := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
