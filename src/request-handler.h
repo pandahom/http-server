@@ -22,7 +22,7 @@ typedef struct {
     char version[VERSION_LEN];
 
     // Headers
-    ht_t *headers;
+    ht_t headers;
 
     char *body;
 } http_request_t;
