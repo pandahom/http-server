@@ -37,8 +37,12 @@ void *handle_conn_states(void *arg) {
                 parse_request(conn_ctx);
                 break;
             case CONN_STATE_RESP_CONSTRUCTING:
+                // TODO: build response
+                process_request(conn_ctx);
                 break;
             case CONN_STATE_RESP_SENDING:
+                // TODO: send response
+                send_msg(conn_ctx);
                 break;
             case CONN_STATE_CLOSED:
                 destroy_connection(conn_ctx);
