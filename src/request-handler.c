@@ -3,18 +3,35 @@
 #include <string.h>
 #include <ctype.h>
 #include "request-handler.h"
+#include "response-build.h"
 #include "ds/ht.h"
-//
-//static void handle_request_line(http_parser_t *p, const char *raw_msg, size_t len) {
-//
-//}
 
-static char *supported_methods[1] = {
-        "GET"
-};
+int validate_http_version(char *version) {
+    int rv = 1;
+    if (!strcmp(version, "HTTP/1.1") || !strcmp(version, "HTTP/1.0"))
+        rv = 0;
+
+    return rv;
+}
+
+void handle_unsupported_version(struct http_resp_s **resp) {
+    build_http_response(resp, STATUS_HTTP_Version_Not_Supported, HTTP_VERSION(1.0));
+}
+
+void handle_unsupported_method(struct http_resp_s **resp) {
+    build_http_response(resp, STATUS_Not_Implemented, HTTP_VERSION(1.0));
+}
+
+int handle_get_req(http_request_t *req)  {
+    int rv = 0;
+    (void)req;
+
+    return rv;
+}
 
 int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len) {
-    (void)supported_methods;
+    http_request_t *req = &parser->req;
+
     for (size_t i = 0; i < len; ++i) {
         char chr = raw_msg[i];
 
@@ -28,14 +45,14 @@ int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len
                     }
 
                     parser->token[parser->token_len] = '\0';
-                    char *method_or_path = (parser->req.method[0] == '\0') ? parser->req.method : parser->req.path;
+                    char *method_or_path = (req->method[0] == '\0') ? req->method : req->path;
 
                     strncpy(method_or_path, parser->token, parser->token_len);
                     parser->token_len = 0;
 
                 } else if (chr == '\r') {
                     parser->token[parser->token_len] = '\0';
-                    strncpy(parser->req.version, parser->token, parser->token_len);
+                    strncpy(req->version, parser->token, parser->token_len);
                     parser->token_len = 0;
 
                 } else if (chr == '\n') {
@@ -70,7 +87,7 @@ int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len
                     // skip
                 } else if (chr == '\r') {
                     parser->token[parser->token_len] = '\0';
-                    if (ht_insert(&parser->req.headers, parser->current_header_name, parser->token) == -1) {
+                    if (ht_insert(&req->headers, parser->current_header_name, parser->token) == -1) {
                         parser->state = MSG_STATE_ERROR;
                     } else {
                         parser->state = MSG_STATE_HEADER_NAME;
@@ -95,7 +112,7 @@ int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len
             default:
                 fprintf(stderr, "unknown parser state: %d\n", parser->state);
                 parser->state = MSG_STATE_ERROR;
-                break;
+                return 1;
         }
     }
     return 0;

@@ -41,14 +41,17 @@ void *handle_conn_states(void *arg) {
             case CONN_STATE_RESP_SENDING:
                 break;
             case CONN_STATE_CLOSED:
-                //destroy_connection(conn_ctx);
-                return NULL;
+                destroy_connection(conn_ctx);
+                goto return_val;
             case CONN_STATE_ERROR:
-                break;
+                ERR_LOG("Encounter error on handling connection");
+                destroy_connection(conn_ctx);
+                goto return_val;
             default:
                 break;
         }
         state_transit(&conn_ctx->sm);
     }
+return_val:
     return NULL;
 }

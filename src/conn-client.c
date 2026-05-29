@@ -37,6 +37,8 @@ void destroy_connection(client_ctx_t *conn_ctx) {
     if (num_active_clients == 0)
         pthread_cond_signal(&cond);
     pthread_mutex_unlock(&mutex);
+
+    ht_destroy(&conn_ctx->parser->req.headers);
     close(conn_ctx->fd);
     free(conn_ctx);
 }
