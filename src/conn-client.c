@@ -85,7 +85,7 @@ void send_msg(client_ctx_t *conn_ctx) {
 
     // Content-Length + end of headers
     n = snprintf(buf + offset, total - offset,
-                 "Content-Length: %zu\r\n\r\n", resp->body_len);
+                 HEADER_CONTENT_LENGTH ": %zu\r\n\r\n", resp->body_len);
     if (n < 0) goto cleanup;
     offset += n;
 

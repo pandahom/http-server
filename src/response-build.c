@@ -4,6 +4,7 @@
 #include "static-response-bodies/http_404.h"
 #include "static-response-bodies/http_500.h"
 #include "static-response-bodies/http_505.h"
+#include "static-response-bodies/http_501.h"
 #include "static-response-bodies/serve_dir.h"
 
 static const struct {
@@ -81,12 +82,12 @@ int build_http_response(http_resp_t** resp, http_code_e code, const char *versio
         case STATUS_Not_Implemented:
             http_response_add_header(new_response, "Connection", "Close");
             http_response_add_header(new_response, "Content-Type", "text/html");
-            http_response_add_body(new_response, BODY_505);
+            http_response_add_body(new_response, BODY_501);
 
             break;
         case STATUS_HTTP_Version_Not_Supported:
-            http_response_add_header(new_response, "Connection", "Close");
-            http_response_add_header(new_response, "Content-Type", "text/html");
+            http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
+            http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_HTML);
             http_response_add_body(new_response, BODY_505);
             new_response->body_len = BODY_505_LEN;
 

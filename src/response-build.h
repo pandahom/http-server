@@ -35,10 +35,14 @@
 #define HTTP_STATUS_NOT_IMPLEMENTED         "501 Not Implemented"
 #define HTTP_STATUS_VERSION_NOT_SUPPORTED   "505 HTTP Version Not Supported"
 
-#define HEADER_CONTENT_TYPE_HTML    "text/html"
-#define HEADER_CONTENT_TYPE_TEXT    "text/plain"
-#define HEADER_CONTENT_TYPE_JSON    "application/json"
-#define HEADER_CONNECTION_CLOSE     "Close"
+#define HEADER_CONTENT_TYPE "Content-Type"
+#define HEADER_CONTENT_LENGTH "Content-Length"
+#define HEADER_CONNECTION "Connection"
+
+#define HEADER_CONTENT_VALUE_TYPE_HTML    "text/html"
+#define HEADER_CONTENT_VALUE_TYPE_TEXT    "text/plain"
+#define HEADER_CONTENT_VALUE_TYPE_JSON    "application/json"
+#define HEADER_CONNECTION_VALUE_CLOSE     "Close"
 #define HEADER_CRLF                 "\r\n"
 
 typedef enum {
