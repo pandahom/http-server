@@ -105,5 +105,5 @@ void ht_destroy(ht_t *ht) {
             free(tmp);
         }
     }
-    free(ht);
+//    free(ht);
 }
