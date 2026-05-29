@@ -14,7 +14,8 @@ SRC 			:= 	$(SRC_DIR)/server-sm.c \
 				   $(SRC_DIR)/server.c \
 				   $(SRC_DIR)/conn-client.c \
 				   $(SRC_DIR)/connection-sm.c \
-				   $(SRC_DIR)/request-handler.c
+				   $(SRC_DIR)/request-handler.c \
+				   $(SRC_DIR)/response-build.c
 
  HEADER_FILES	:= $(SRC_DIR)/common.h \
 				   $(SRC_DIR)/server-sm.h \
@@ -22,6 +23,7 @@ SRC 			:= 	$(SRC_DIR)/server-sm.c \
 				   $(SRC_DIR)/connection-sm.h \
 				   $(SRC_DIR)/conn-client.h \
 				   $(SRC_DIR)/request-handler.h \
+				   $(SRC_DIR)/response-build.h \
 				   $(DS_DIR)/linked-list.h \
 				   $(DS_DIR)/ht.h
 
