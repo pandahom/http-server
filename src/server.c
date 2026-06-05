@@ -96,6 +96,8 @@ client_ctx_t *accept_connection(server_ctx_t *server) {
     if (conn_ctx->fd == -1) {
         ERR_LOG("accept()");
         server->sm.event_trigger = SRV_EVENT_ERROR;
+        free(conn_ctx);
+        return NULL;
     }
 
     if (inet_ntop(conn_ctx->address.ss_family,
@@ -103,6 +105,8 @@ client_ctx_t *accept_connection(server_ctx_t *server) {
                   conn_ctx->readable_format.ip, MAX_ADDR_LEN) == NULL) {
         ERR_LOG("inet_ntop()");
         server->sm.event_trigger = SRV_EVENT_ERROR;
+        free(conn_ctx);
+        return NULL;
     }
 
     conn_ctx->readable_format.port = ntohs(get_port(&conn_ctx->address));
@@ -124,14 +128,18 @@ void init_client_connection_thread(client_ctx_t *new_con, server_ctx_t *server) 
     rv = pthread_create(&new_th, NULL, handle_conn_states, new_con);
 
     if (rv != OK) {
-        // TODO: terminate client ctx
+        close(new_con->fd);
+        free(new_con);
         ERR_LOG("Could not create a new thread.");
+        return;
     }
 
     rv = pthread_detach(new_th);
     if (rv != OK) {
-        // TODO: terminate client ctx
+        close(new_con->fd);
+        free(new_con);
         ERR_LOG("Could not set detach on new thread.");
+        return;
     }
 
     server->sm.event_trigger = SRV_EVENT_RESET;

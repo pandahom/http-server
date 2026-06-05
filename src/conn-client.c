@@ -13,6 +13,7 @@ void receive_msg(client_ctx_t *conn_ctx) {
     if (received_bytes == -1) {
         ERR_LOG("recv() returns -1");
         conn_ctx->sm.event_trigger = CONN_EVENT_ERROR;
+        return;
     }
     conn_ctx->received_bytes = received_bytes;
 }
@@ -21,6 +22,7 @@ void parse_request(client_ctx_t *conn) {
     conn->parser = (void*) calloc(1, sizeof(http_parser_t));
     if (!conn->parser) {
         ERR_LOG("Could not allocate memory for parser");
+        conn->sm.event_trigger = CONN_EVENT_ERROR;
         return;
     }
     int rv = request_state_handler(conn->parser, conn->received_msg, conn->received_bytes);
@@ -111,19 +113,26 @@ cleanup:
 }
 
 void destroy_connection(client_ctx_t *conn_ctx) {
+    if (!conn_ctx)
+        return;
+
     pthread_mutex_lock(&mutex);
     num_active_clients--;
     if (num_active_clients == 0)
         pthread_cond_signal(&cond);
     pthread_mutex_unlock(&mutex);
 
-    ht_destroy(&conn_ctx->parser->req.headers);
-    close(conn_ctx->fd);
-    free(conn_ctx->parser);
-    ll_destroy(conn_ctx->response->headers, header_t , h, free(h->name), free(h->value));
-    free(conn_ctx->response->body);
-    free(conn_ctx->response);
+    if (conn_ctx->parser) {
+        ht_destroy(&conn_ctx->parser->req.headers);
+        free(conn_ctx->parser);
+    }
+    if (conn_ctx->response) {
+        ll_destroy(conn_ctx->response->headers, header_t , h, free(h->name), free(h->value));
+        free(conn_ctx->response->body);
+        free(conn_ctx->response);
+    }
 
+    close(conn_ctx->fd);
     free(conn_ctx);
 }
 
