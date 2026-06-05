@@ -23,9 +23,30 @@ void handle_unsupported_method(struct http_resp_s **resp, const char *method) {
     build_http_response_default_page(resp, STATUS_Not_Implemented, HTTP_VERSION(1.0), method);
 }
 
-int handle_get_req(http_request_t *req)  {
+int handle_get_req(struct http_resp_s **resp, http_request_t *req)  {
     int rv = 0;
-    (void)req;
+
+    char path[1024] = DOC_ROOT;
+    struct stat st = {0};
+    // TODO: Normalize/Decode Path
+    strcat(path, req->path);
+
+    if (strcmp(req->path, "/") == 0) { // return statis listing page of root directory
+        build_http_response_default_page(resp, STATUS_OK, HTTP_VERSION(1.0), path, req->path);
+    } else {
+        if (stat(path, &st) == -1) {
+            build_http_response_default_page(resp, STATUS_Not_Found, HTTP_VERSION(1.0), &req->path[1]);
+        } else {
+            if (S_ISDIR(st.st_mode)){
+                build_http_response_default_page(resp, STATUS_OK, HTTP_VERSION(1.0), path ,&req->path[1]);
+            } else if (S_ISREG(st.st_mode) && strstr(path, ".html")) {
+                // build_http_response(resp, STATUS_OK, HTTP_VERSION(1.0), path);
+            } else {
+                // TODO: Send File
+            }
+
+        }
+    }
 
     return rv;
 }

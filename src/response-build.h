@@ -2,7 +2,6 @@
 #define RESPONSE_BUILD_H
 #include "ds/ht.h"
 
-//extern ht_t *ht_http_status;
 #define HTTP_VERSION(v) "HTTP/"#v
 
 /*
@@ -44,6 +43,8 @@
 #define HEADER_CONTENT_VALUE_TYPE_JSON    "application/json"
 #define HEADER_CONNECTION_VALUE_CLOSE     "Close"
 #define HEADER_CRLF                 "\r\n"
+
+#define DOC_ROOT "/tmp/miz"
 
 typedef enum {
     STATUS_OK = 200,

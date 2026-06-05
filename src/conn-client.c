@@ -24,7 +24,6 @@ void parse_request(client_ctx_t *conn) {
         return;
     }
     int rv = request_state_handler(conn->parser, conn->received_msg, conn->received_bytes);
-//    list_or_ht_show(NULL, conn->parser->req.header_list);
     if (rv == 0) {
         conn->sm.event_trigger = CONN_EVENT_REQ_PARSED;
     } else
@@ -32,26 +31,28 @@ void parse_request(client_ctx_t *conn) {
 }
 
 int process_request(client_ctx_t *conn) {
-    int rv = 0;
-    http_parser_t *pr = conn->parser;
-    http_request_t *req = &pr->req;
+    int            rv    = 0;
+    http_parser_t  *pr   = conn->parser;
+    http_request_t *req  = &pr->req;
+    http_resp_t    *resp = conn->response;
 
     rv = validate_http_version(req->version);
 
     if (rv != 0) {
-        handle_unsupported_version(&conn->response);
+        handle_unsupported_version(&resp);
         goto done;
     }
 
     if (strcmp(req->method, "GET") == 0) {
-        rv = handle_get_req(req);
+        rv = handle_get_req(&resp, req);
     } else if (strcmp(req->method, "POST") == 0) {
     } else if (strcmp(req->method, "HEAD") == 0) {
     } else {
-//        rv = handle_unsupported_method()
+        handle_unsupported_method(&resp, req->method);
     }
 
 done:
+    conn->response = resp;
     conn->sm.event_trigger = CONN_EVENT_RESP_BUILT;
 
     return 0;
@@ -83,9 +84,7 @@ void send_msg(client_ctx_t *conn_ctx) {
         offset += n;
     }
 
-    // Content-Length + end of headers
-    n = snprintf(buf + offset, total - offset,
-                 HEADER_CONTENT_LENGTH ": %zu\r\n\r\n", resp->body_len);
+    n = snprintf(buf + offset, total - offset, HEADER_CRLF);
     if (n < 0) goto cleanup;
     offset += n;
 
@@ -121,11 +120,13 @@ void destroy_connection(client_ctx_t *conn_ctx) {
     ht_destroy(&conn_ctx->parser->req.headers);
     close(conn_ctx->fd);
     free(conn_ctx->parser);
-    ll_destroy(conn_ctx->response->headers, node_t , h);
+    ll_destroy(conn_ctx->response->headers, header_t , h, free(h->name), free(h->value));
+    free(conn_ctx->response->body);
     free(conn_ctx->response);
 
     free(conn_ctx);
 }
+
 static size_t compute_response_size(http_resp_t *resp) {
     size_t size = 0;
 
@@ -140,14 +141,7 @@ static size_t compute_response_size(http_resp_t *resp) {
         // "Key: Value\r\n"
     }
 
-    // content-length header
-    char tmp[64];
-    size += snprintf(tmp, sizeof(tmp),
-        "Content-Length: %zu\r\n",
-        strlen(resp->body)
-    );
-
-    size += 3 + strlen(resp->body); // 2 for \r\n and 1 for \0 that sprintf add
+    size += 3 + resp->body_len; // 2 for \r\n (Body Part) and 1 for \0 that sprintf add
 
     return size;
 }
