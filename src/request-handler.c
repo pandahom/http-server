@@ -39,10 +39,8 @@ int handle_get_req(struct http_resp_s **resp, http_request_t *req)  {
         } else {
             if (S_ISDIR(st.st_mode)){
                 build_http_response_default_page(resp, STATUS_OK, HTTP_VERSION(1.0), path ,&req->path[1]);
-            } else if (S_ISREG(st.st_mode) && strstr(path, ".html")) {
-                // build_http_response(resp, STATUS_OK, HTTP_VERSION(1.0), path);
             } else {
-                // TODO: Send File
+                build_http_file_response(resp, STATUS_OK, HTTP_VERSION(1.0), path);
             }
 
         }

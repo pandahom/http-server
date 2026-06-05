@@ -38,10 +38,20 @@
 #define HEADER_CONTENT_LENGTH "Content-Length"
 #define HEADER_CONNECTION "Connection"
 
-#define HEADER_CONTENT_VALUE_TYPE_HTML    "text/html"
-#define HEADER_CONTENT_VALUE_TYPE_TEXT    "text/plain"
-#define HEADER_CONTENT_VALUE_TYPE_JSON    "application/json"
+// Content-Types
+#define HEADER_CONTENT_VALUE_TYPE_TEXT_HTML          "text/html"
+#define HEADER_CONTENT_VALUE_TYPE_TEXT_PLAIN         "text/plain"
+#define HEADER_CONTENT_VALUE_TYPE_TEXT_CSS           "text/css"
+#define HEADER_CONTENT_VALUE_TYPE_APP_JS             "application/javascript"
+#define HEADER_CONTENT_VALUE_TYPE_APP_JSON           "application/json"
+#define HEADER_CONTENT_VALUE_TYPE_APP_OCTECT_STREAM  "application/octet-stream"
+#define HEADER_CONTENT_VALUE_TYPE_APP_PDF            "application/pdf"
+#define HEADER_CONTENT_VALUE_TYPE_IMAGE_PNG          "image/png"
+#define HEADER_CONTENT_VALUE_TYPE_IMAGE_JPG          "image/jpeg"
+#define HEADER_CONTENT_VALUE_TYPE_IMAGE_GIF          "image/gif"
+
 #define HEADER_CONNECTION_VALUE_CLOSE     "Close"
+
 #define HEADER_CRLF                 "\r\n"
 
 #define DOC_ROOT "/tmp/miz"
@@ -58,6 +68,11 @@ typedef enum {
     STATUS_HTTP_Version_Not_Supported = 505
 } http_code_e;
 
+typedef enum {
+    BODY_TYPE_FILE,
+    BODY_TYPE_MEM
+} body_type_e;
+
 typedef struct {
     node_t next;
     char *name;
@@ -72,12 +87,17 @@ typedef struct http_resp_s {
 
     // Headers
     list_t *headers;
-
+    body_type_e    body_type;
     // Body
+
     char *body;
     size_t   body_len; // content-length
+
+    int file_fd;
+    off_t file_size;
 } http_resp_t;
 
 int build_http_response_default_page(http_resp_t** resp, http_code_e code, const char* version, ...);
+int build_http_file_response(http_resp_t** resp, http_code_e code, const char* version, const char *path);
 void send_response(http_resp_t* resp);
 #endif

@@ -2,7 +2,10 @@
 #include "request-handler.h"
 #include "response-build.h"
 #include <pthread.h>
+#include <sys/sendfile.h>
+
 static size_t compute_response_size(http_resp_t *resp);
+static void send_headers(client_ctx_t *conn_ctx, char *buf, size_t total_size);
 
 void receive_msg(client_ctx_t *conn_ctx) {
     ssize_t received_bytes = 0;
@@ -90,20 +93,37 @@ void send_msg(client_ctx_t *conn_ctx) {
     if (n < 0) goto cleanup;
     offset += n;
 
-    // send headers
-    size_t sent = 0;
-    while (sent < offset) {
-        ssize_t rv = send(conn_ctx->fd, buf + sent, offset - sent, 0);
-        if (rv < 0) goto cleanup;
-        sent += rv;
-    }
+    // send headers TODO: Handle error
+    send_headers(conn_ctx, buf, offset);
 
-    // send body separately — no copy into buf
-    sent = 0;
-    while (sent < resp->body_len) {
-        ssize_t rv = send(conn_ctx->fd, resp->body + sent, resp->body_len - sent, 0);
-        if (rv < 0) goto cleanup;
-        sent += rv;
+
+    // send body
+    size_t sent = 0;
+    switch (resp->body_type) {
+        case BODY_TYPE_MEM:
+            while (sent < resp->body_len) {
+                ssize_t rv = send(conn_ctx->fd, resp->body + sent, resp->body_len - sent, 0);
+                if (rv < 0) goto cleanup;
+                sent += rv;
+            }
+            break;
+        case BODY_TYPE_FILE:
+            /*
+             I could Use read and write/send to send data but as i have read,
+              it comes up with additional user space copy which is unnecessary
+              when we can transfer files directly in a zero copy way
+            */
+            off_t file_offset = 0;
+            while (file_offset < resp->file_size) {
+                ssize_t rv = sendfile(conn_ctx->fd, resp->file_fd, &file_offset, resp->file_size);
+                if (rv <= 0) {
+                    // TODO: ERROR HANDLING
+                    break;
+                }
+            }
+            break;
+        default:
+            break;
     }
 
     conn_ctx->sm.event_trigger = CONN_EVENT_RESP_SENT;
@@ -153,4 +173,16 @@ static size_t compute_response_size(http_resp_t *resp) {
     size += 3 + resp->body_len; // 2 for \r\n (Body Part) and 1 for \0 that sprintf add
 
     return size;
+}
+
+static void send_headers(client_ctx_t *conn_ctx, char *buf, size_t total_size) {
+    // send headers
+    size_t sent = 0;
+    while (sent < total_size) {
+        ssize_t rv = send(conn_ctx->fd, buf + sent, total_size - sent, 0);
+        if (rv < 0)
+            return;
+        sent += rv;
+    }
+
 }
