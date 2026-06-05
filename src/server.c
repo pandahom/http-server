@@ -111,10 +111,6 @@ client_ctx_t *accept_connection(server_ctx_t *server) {
 
     conn_ctx->readable_format.port = ntohs(get_port(&conn_ctx->address));
 
-    pthread_mutex_lock(&mutex);
-    num_active_clients++;
-    pthread_mutex_unlock(&mutex);
-
     printf("Received connection from %s:%u\n", conn_ctx->readable_format.ip, conn_ctx->readable_format.port);
 
     return conn_ctx;
@@ -141,6 +137,10 @@ void init_client_connection_thread(client_ctx_t *new_con, server_ctx_t *server) 
         ERR_LOG("Could not set detach on new thread.");
         return;
     }
+
+    pthread_mutex_lock(&mutex);
+    num_active_clients++;
+    pthread_mutex_unlock(&mutex);
 
     server->sm.event_trigger = SRV_EVENT_RESET;
 }
