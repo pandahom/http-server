@@ -9,6 +9,4 @@
     "    <p>The server could not understand your request.</p>\r\n" \
     "  </body>\r\n" \
     "</html>\r\n"
-#define BODY_400_LEN (sizeof(BODY_400) - 1)
-
 #endif

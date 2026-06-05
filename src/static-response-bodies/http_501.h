@@ -12,6 +12,4 @@
                "<p>Error code explanation: 501 - Server does not support this operation.</p>"\
            "</body>"    \
        "</html>"
-#define BODY_501_LEN (strlen(BODY_501))
-
 #endif

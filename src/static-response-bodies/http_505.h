@@ -9,8 +9,5 @@
     "</body>" \
     "</html>"
 
-#define BODY_505_LEN (strlen(BODY_505))
-
-
 #endif
 

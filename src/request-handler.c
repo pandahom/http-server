@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/stat.h>
 #include "request-handler.h"
 #include "response-build.h"
 #include "ds/ht.h"
@@ -15,11 +16,11 @@ int validate_http_version(char *version) {
 }
 
 void handle_unsupported_version(struct http_resp_s **resp) {
-    build_http_response(resp, STATUS_HTTP_Version_Not_Supported, HTTP_VERSION(1.0));
+    build_http_response_default_page(resp, STATUS_HTTP_Version_Not_Supported, HTTP_VERSION(1.0), NULL);
 }
 
-void handle_unsupported_method(struct http_resp_s **resp) {
-    build_http_response(resp, STATUS_Not_Implemented, HTTP_VERSION(1.0));
+void handle_unsupported_method(struct http_resp_s **resp, const char *method) {
+    build_http_response_default_page(resp, STATUS_Not_Implemented, HTTP_VERSION(1.0), method);
 }
 
 int handle_get_req(http_request_t *req)  {

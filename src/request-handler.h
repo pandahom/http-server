@@ -58,7 +58,7 @@ struct http_resp_s;
 
 int validate_http_version(char *version);
 void handle_unsupported_version(struct http_resp_s **resp);
-void handle_unsupported_method(struct http_resp_s **resp);
+void handle_unsupported_method(struct http_resp_s **resp, const char *method);
 int handle_get_req(http_request_t *req);
 int request_state_handler(http_parser_t  *parser, const char *raw_msg, size_t len);
 #endif

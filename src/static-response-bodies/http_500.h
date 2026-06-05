@@ -10,7 +10,4 @@
     "    <p>The server encountered an unexpected error. Please try again later.</p>\r\n" \
     "  </body>\r\n" \
     "</html>\r\n"
-
-#define BODY_500_LEN (sizeof(BODY_500) - 1)
-
 #endif

@@ -1,3 +1,7 @@
+#include <stdarg.h>
+#include <string.h>
+
+#include "path-handler.h"
 #include "response-build.h"
 #include "common.h"
 #include "static-response-bodies/http_400.h"
@@ -5,7 +9,7 @@
 #include "static-response-bodies/http_500.h"
 #include "static-response-bodies/http_505.h"
 #include "static-response-bodies/http_501.h"
-#include "static-response-bodies/serve_dir.h"
+#include "static-response-bodies/default_dir_list_page.h"
 
 static const struct {
     http_code_e status_code;
@@ -25,6 +29,7 @@ static const struct {
 static const char* get_status_message(http_code_e code);
 static http_resp_t *http_response_init(void);
 static int http_response_add_header(http_resp_t *resp, char *name, char *value);
+static ssize_t http_response_add_body(http_resp_t *resp, const char *format, ...);
 
 static const char* get_status_message(http_code_e code) {
     size_t n = sizeof(http_status) / sizeof(http_status[0]);
@@ -47,18 +52,46 @@ static int http_response_add_header(http_resp_t *resp, char *name, char *value) 
         ERR_LOG("Could not allocate for header_t");
         return 1;
     }
-    new_header->name = name;
-    new_header->value = value;
-    // Note: Content-Type will not be added here.
+    new_header->name = strdup(name);
+    new_header->value = strdup(value);
 
     ll_add_node(&resp->headers, new_header);
     return 0;
 }
 
-#define http_response_add_body(res_ptr, _body) \
-    (res_ptr)->body = (_body)
+static ssize_t http_response_add_body(http_resp_t *resp, const char *format, ...) {
+    va_list ap, copy_ap;
+    va_start(ap, format);
+    va_copy(copy_ap, ap);
 
-int build_http_response(http_resp_t** resp, http_code_e code, const char *version) {
+    ssize_t body_len = vsnprintf(NULL, 0, format, copy_ap);
+    if (body_len < 0) {
+        ERR_LOG("Could not compute response body length");
+        return 1;
+    }
+    va_end(copy_ap);
+
+    resp->body = (char *) calloc((size_t) body_len + 1, sizeof(char));
+    if (!resp->body) {
+        ERR_LOG("Could not allocate for body");
+        return 1;
+    }
+
+    vsnprintf(resp->body, body_len + 1, format, ap);
+
+    va_end(ap);
+    return body_len;
+}
+
+
+int build_http_response_default_page(http_resp_t** resp, http_code_e code, const char* version, ...) {
+    int rv = 0;
+    char content_len[10] = {0};
+    va_list ap;
+    va_start(ap, version);
+    char *arg = NULL, *arg2 = NULL;
+    arg = va_arg(ap, char *);
+
     http_resp_t *new_response = http_response_init();
     if (!new_response) {
         ERR_LOG("Could not allocate for http_resp_t");
@@ -75,28 +108,53 @@ int build_http_response(http_resp_t** resp, http_code_e code, const char *versio
     new_response->phrase = phrase;
     new_response->status_code = code;
     new_response->version = version;
-
+    (void)rv;
     switch (code) {
+     // TODO: Handle Return Value on ERROR
         case STATUS_OK:
+            arg2 = va_arg(ap, char *);
+
+            char elemtns[4096] = {0};
+            list_dir(arg,elemtns);
+
+            new_response->body_len =  http_response_add_body(new_response, DEFAULT_PAGE, arg, arg2,  elemtns);
+            rv = http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
+            rv = http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_HTML);
+
+            snprintf(content_len, 10, "%zu", new_response->body_len);
+            rv = http_response_add_header(new_response, HEADER_CONTENT_LENGTH, content_len);
+
+            break;
+        case STATUS_Not_Found:
+            new_response->body_len =  http_response_add_body(new_response, BODY_404, arg);
+            rv = http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
+            rv = http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_HTML);
+
+            snprintf(content_len, 10, "%zu", new_response->body_len);
+            rv = http_response_add_header(new_response, HEADER_CONTENT_LENGTH, content_len);
+
             break;
         case STATUS_Not_Implemented:
-            http_response_add_header(new_response, "Connection", "Close");
-            http_response_add_header(new_response, "Content-Type", "text/html");
-            http_response_add_body(new_response, BODY_501);
+            new_response->body_len =  http_response_add_body(new_response, BODY_501, (char *) arg);
+            rv = http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
+            rv = http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_HTML);
 
+            snprintf(content_len, 10, "%zu", new_response->body_len);
+            rv = http_response_add_header(new_response, HEADER_CONTENT_LENGTH, content_len);
             break;
         case STATUS_HTTP_Version_Not_Supported:
-            http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
-            http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_HTML);
-            http_response_add_body(new_response, BODY_505);
-            new_response->body_len = BODY_505_LEN;
+            new_response->body_len = http_response_add_body(new_response, BODY_505);
 
-//            ll_destroy(new_response->headers, header_t, header);
+            rv = http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
+            rv = http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_HTML);
+            snprintf(content_len, 10, "%zu", new_response->body_len);
+            rv = http_response_add_header(new_response, HEADER_CONTENT_LENGTH, content_len);
 
             break;
         default:
             break;
     }
+    va_end(ap);
 
     return 0;
 }
