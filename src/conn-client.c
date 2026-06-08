@@ -2,10 +2,13 @@
 #include "request-handler.h"
 #include "response-build.h"
 #include <pthread.h>
+#include <errno.h>
 #include <sys/sendfile.h>
 
 static size_t compute_response_size(http_resp_t *resp);
-static void send_headers(client_ctx_t *conn_ctx, char *buf, size_t total_size);
+static int send_headers(client_ctx_t *conn_ctx, char *buf, size_t total_size);
+static int send_file_response_body(client_ctx_t *conn_ctx, int file_fd, off_t file_size);
+static int send_mem_response_body(client_ctx_t *conn_ctx, char *buffer, size_t response_size);
 
 void receive_msg(client_ctx_t *conn_ctx) {
     ssize_t received_bytes = 0;
@@ -67,6 +70,7 @@ void send_msg(client_ctx_t *conn_ctx) {
     char        *buf  = NULL;
     size_t       total = compute_response_size(resp);
     size_t       offset = 0;
+    int          rv = 0;
     int          n;
 
     buf = malloc(total);
@@ -93,19 +97,22 @@ void send_msg(client_ctx_t *conn_ctx) {
     if (n < 0) goto cleanup;
     offset += n;
 
-    // send headers TODO: Handle error
-    send_headers(conn_ctx, buf, offset);
+    // send headers
+    rv = send_headers(conn_ctx, buf, offset);
+    if (rv == FAIL) {
+        conn_ctx->sm.event_trigger = CONN_EVENT_ERROR;
+        goto cleanup;
+    }
 
 
     // send body
-    size_t sent = 0;
     switch (resp->body_type) {
         case BODY_TYPE_MEM:
-            while (sent < resp->body.mem.len) {
-                ssize_t rv = send(conn_ctx->fd, resp->body.mem.data + sent, resp->body.mem.len - sent, 0);
-                if (rv < 0)
-                    goto cleanup;
-                sent += rv;
+            rv = send_mem_response_body(conn_ctx, resp->body.mem.data, resp->body.mem.len);
+            if (rv == FAIL) {
+                ERR_LOG("Sending response body buffer failed");
+                conn_ctx->sm.event_trigger = CONN_EVENT_ERROR;
+                goto cleanup;
             }
             break;
         case BODY_TYPE_FILE:
@@ -114,13 +121,11 @@ void send_msg(client_ctx_t *conn_ctx) {
               it comes up with additional user space copy which is unnecessary
               when we can transfer files directly in a zero copy way
             */
-            off_t file_offset = 0;
-            while (file_offset < resp->body.file.len) {
-                ssize_t rv = sendfile(conn_ctx->fd, resp->body.file.fd, &file_offset, resp->body.file.len - offset);
-                if (rv <= 0) {
-                    // TODO: ERROR HANDLING
-                    break;
-                }
+            rv = send_file_response_body(conn_ctx, resp->body.file.fd, resp->body.file.len);
+            if (rv == FAIL) {
+                ERR_LOG("Sending response file failed");
+                conn_ctx->sm.event_trigger = CONN_EVENT_ERROR;
+                goto cleanup;
             }
             break;
         default:
@@ -181,14 +186,43 @@ static size_t compute_response_size(http_resp_t *resp) {
     return size;
 }
 
-static void send_headers(client_ctx_t *conn_ctx, char *buf, size_t total_size) {
-    // send headers
+static int send_headers(client_ctx_t *conn_ctx, char *buf, size_t total_size) {
     size_t sent = 0;
+    ssize_t rv = 0;
+
     while (sent < total_size) {
-        ssize_t rv = send(conn_ctx->fd, buf + sent, total_size - sent, 0);
-        if (rv < 0)
-            return;
+        rv = send(conn_ctx->fd, buf + sent, total_size - sent, 0);
+        if (rv < 0 && (errno == EPIPE || errno == ECONNRESET)) {
+                return FAIL;
+        }
         sent += rv;
     }
+    return OK;
+}
 
+static int send_file_response_body(client_ctx_t *conn_ctx, int file_fd, off_t file_size) {
+    off_t file_offset = 0;
+    while (file_offset < file_size) {
+        off_t remaining = file_size - file_offset;
+
+        ssize_t rv = sendfile(conn_ctx->fd, file_fd, &file_offset, remaining);
+        if (rv < 0) {
+            return FAIL;
+        }
+    }
+    return OK;
+}
+
+static int send_mem_response_body(client_ctx_t *conn_ctx, char *buffer, size_t response_size) {
+    size_t sent = 0;
+    ssize_t rv  = 0;
+    while (sent < response_size) {
+        ssize_t remaining = response_size - sent;
+        rv = send(conn_ctx->fd, buffer + sent, remaining, 0);
+        if (rv < 0) {
+            return FAIL;
+        }
+        sent += rv;
+    }
+    return OK;
 }
