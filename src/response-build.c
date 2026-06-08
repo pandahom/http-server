@@ -232,7 +232,6 @@ static int build_http_response_file_impl(http_resp_t** resp, http_code_e code, c
     new_response->body.file.fd = fd;
     new_response->body_type = BODY_TYPE_FILE;
 
-done:
     return OK;
 }
 
