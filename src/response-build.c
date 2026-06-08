@@ -116,13 +116,13 @@ static ssize_t http_response_add_body(http_resp_t *resp, const char *format, ...
     }
     va_end(copy_ap);
 
-    resp->body = (char *) calloc((size_t) body_len + 1, sizeof(char));
-    if (!resp->body) {
+    resp->body.mem.data = (char *) calloc((size_t) body_len + 1, sizeof(char));
+    if (!resp->body.mem.data) {
         ERR_LOG("Could not allocate for body");
         return 1;
     }
 
-    vsnprintf(resp->body, body_len + 1, format, ap);
+    vsnprintf(resp->body.mem.data, body_len + 1, format, ap);
 
     va_end(ap);
     return body_len;
@@ -168,13 +168,13 @@ int build_http_file_response(http_resp_t** resp, http_code_e code, const char* v
     new_response->phrase = phrase;
     new_response->status_code = code;
     new_response->version = version;
-    new_response->file_size = st.st_size;
-    new_response->file_fd = fd;
+    new_response->body.file.len = st.st_size;
+    new_response->body.file.fd = fd;
     new_response->body_type = BODY_TYPE_FILE;
 
 
     content_type = (char *) get_content_type(path);
-    snprintf(content_len, 20, "%zu", new_response->file_size);
+    snprintf(content_len, 20, "%zu", new_response->body.file.len);
 
     rv = http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
     rv = http_response_add_header(new_response, HEADER_CONTENT_TYPE, content_type);
@@ -217,37 +217,37 @@ int build_http_response_default_page(http_resp_t** resp, http_code_e code, const
             char elemtns[4096] = {0};
             list_dir(arg,elemtns);
 
-            new_response->body_len =  http_response_add_body(new_response, DEFAULT_PAGE, arg, arg2,  elemtns);
+            new_response->body.mem.len =  http_response_add_body(new_response, DEFAULT_PAGE, arg, arg2,  elemtns);
             rv = http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
             rv = http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML);
 
-            snprintf(content_len, 10, "%zu", new_response->body_len);
+            snprintf(content_len, 10, "%zu", new_response->body.mem.len);
             rv = http_response_add_header(new_response, HEADER_CONTENT_LENGTH, content_len);
 
             break;
         case STATUS_Not_Found:
-            new_response->body_len =  http_response_add_body(new_response, BODY_404, arg);
+            new_response->body.mem.len =  http_response_add_body(new_response, BODY_404, arg);
             rv = http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
             rv = http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML);
 
-            snprintf(content_len, 10, "%zu", new_response->body_len);
+            snprintf(content_len, 10, "%zu", new_response->body.mem.len);
             rv = http_response_add_header(new_response, HEADER_CONTENT_LENGTH, content_len);
 
             break;
         case STATUS_Not_Implemented:
-            new_response->body_len =  http_response_add_body(new_response, BODY_501, (char *) arg);
+            new_response->body.mem.len =  http_response_add_body(new_response, BODY_501, (char *) arg);
             rv = http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
             rv = http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML);
 
-            snprintf(content_len, 10, "%zu", new_response->body_len);
+            snprintf(content_len, 10, "%zu", new_response->body.mem.len);
             rv = http_response_add_header(new_response, HEADER_CONTENT_LENGTH, content_len);
             break;
         case STATUS_HTTP_Version_Not_Supported:
-            new_response->body_len = http_response_add_body(new_response, BODY_505);
+            new_response->body.mem.len = http_response_add_body(new_response, BODY_505);
 
             rv = http_response_add_header(new_response, HEADER_CONNECTION, HEADER_CONNECTION_VALUE_CLOSE);
             rv = http_response_add_header(new_response, HEADER_CONTENT_TYPE, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML);
-            snprintf(content_len, 10, "%zu", new_response->body_len);
+            snprintf(content_len, 10, "%zu", new_response->body.mem.len);
             rv = http_response_add_header(new_response, HEADER_CONTENT_LENGTH, content_len);
 
             break;

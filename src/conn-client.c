@@ -101,9 +101,10 @@ void send_msg(client_ctx_t *conn_ctx) {
     size_t sent = 0;
     switch (resp->body_type) {
         case BODY_TYPE_MEM:
-            while (sent < resp->body_len) {
-                ssize_t rv = send(conn_ctx->fd, resp->body + sent, resp->body_len - sent, 0);
-                if (rv < 0) goto cleanup;
+            while (sent < resp->body.mem.len) {
+                ssize_t rv = send(conn_ctx->fd, resp->body.mem.data + sent, resp->body.mem.len - sent, 0);
+                if (rv < 0)
+                    goto cleanup;
                 sent += rv;
             }
             break;
@@ -114,8 +115,8 @@ void send_msg(client_ctx_t *conn_ctx) {
               when we can transfer files directly in a zero copy way
             */
             off_t file_offset = 0;
-            while (file_offset < resp->file_size) {
-                ssize_t rv = sendfile(conn_ctx->fd, resp->file_fd, &file_offset, resp->file_size);
+            while (file_offset < resp->body.file.len) {
+                ssize_t rv = sendfile(conn_ctx->fd, resp->body.file.fd, &file_offset, resp->body.file.len - offset);
                 if (rv <= 0) {
                     // TODO: ERROR HANDLING
                     break;
@@ -148,7 +149,12 @@ void destroy_connection(client_ctx_t *conn_ctx) {
     }
     if (conn_ctx->response) {
         ll_destroy(conn_ctx->response->headers, header_t , h, free(h->name), free(h->value));
-        free(conn_ctx->response->body);
+        if (conn_ctx->response->body_type == BODY_TYPE_MEM) {
+            free(conn_ctx->response->body.mem.data);
+        } else if (conn_ctx->response->body_type == BODY_TYPE_FILE){
+            close(conn_ctx->response->body.file.fd);
+        }
+
         free(conn_ctx->response);
     }
 
@@ -170,7 +176,7 @@ static size_t compute_response_size(http_resp_t *resp) {
         // "Key: Value\r\n"
     }
 
-    size += 3 + resp->body_len; // 2 for \r\n (Body Part) and 1 for \0 that sprintf add
+    size += 3 + resp->body.mem.len; // 2 for \r\n (Body Part) and 1 for \0 that sprintf add
 
     return size;
 }

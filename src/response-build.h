@@ -1,6 +1,7 @@
 #ifndef RESPONSE_BUILD_H
 #define RESPONSE_BUILD_H
 #include "ds/ht.h"
+#include <stddef.h>
 
 #define HTTP_VERSION(v) "HTTP/"#v
 
@@ -81,20 +82,27 @@ typedef struct {
 
 typedef struct http_resp_s {
     // Status line
-    const char *version;
-    http_code_e      status_code;
+    const char     *version;
+    http_code_e    status_code;
     const char    *phrase;
 
     // Headers
     list_t *headers;
+
+   // Body
     body_type_e    body_type;
-    // Body
+    union {
+        struct {
+            char *data;
+            size_t len;
+        } mem;
 
-    char *body;
-    size_t   body_len; // content-length
+        struct {
+            int fd;
+            off_t len;
+        } file;
+    } body;
 
-    int file_fd;
-    off_t file_size;
 } http_resp_t;
 
 int build_http_response_default_page(http_resp_t** resp, http_code_e code, const char* version, ...);
