@@ -11,7 +11,7 @@
 #include <stddef.h>
 
 #define OK 0
-#define FAIL 1
+#define FAIL -1
 
 #define RED          "\033[1;31m"
 #define YELLOW       "\033[1;33m"

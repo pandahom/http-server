@@ -70,6 +70,7 @@ typedef enum {
 } http_code_e;
 
 typedef enum {
+    BODY_TYPE_NONE,
     BODY_TYPE_FILE,
     BODY_TYPE_MEM
 } body_type_e;
@@ -106,6 +107,9 @@ typedef struct http_resp_s {
 } http_resp_t;
 
 int build_http_response_default_page(http_resp_t** resp, http_code_e code, const char* version, ...);
-int build_http_file_response(http_resp_t** resp, http_code_e code, const char* version, const char *path);
+int build_http_response_default_page_headers(http_resp_t** resp, http_code_e code, const char* version, ...);
+
+int build_http_response_file(http_resp_t** resp, http_code_e code, const char* version, const char *path);
+int build_http_response_file_headers(http_resp_t** resp, http_code_e code, const char* version, const char *path);
 void send_response(http_resp_t* resp);
 #endif
