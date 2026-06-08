@@ -181,7 +181,7 @@ static size_t compute_response_size(http_resp_t *resp) {
         // "Key: Value\r\n"
     }
 
-    size += 3 + resp->body.mem.len; // 2 for \r\n (Body Part) and 1 for \0 that sprintf add
+    size += 3; // 2 for \r\n (Body Part) and 1 for \0 that sprintf add
 
     return size;
 }
