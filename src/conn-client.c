@@ -55,6 +55,7 @@ int process_request(client_ctx_t *conn) {
         rv = handle_get_req(&resp, req);
     } else if (strcmp(req->method, "POST") == 0) {
     } else if (strcmp(req->method, "HEAD") == 0) {
+        rv = handle_head_req(&resp, req);
     } else {
         handle_unsupported_method(&resp, req->method);
     }
