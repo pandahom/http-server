@@ -13,6 +13,7 @@
 #define OK 0
 #define FAIL -1
 
+#define BOLD         "\033[1m"
 #define RED          "\033[1;31m"
 #define YELLOW       "\033[1;33m"
 #define CYAN         "\033[1;36m"
@@ -27,12 +28,14 @@ extern pthread_cond_t cond;
 #define MAX_RECEIVE_BYTES   (5 * 1024)
 #define DEFAULT_STR_SIZE 1024
 
-#define ERR_LOG(msg)  do {                             \
-    printf( YELLOW "%s" CYAN "::" DEFAULT , __FILE__);   \
-    printf( YELLOW "%s" CYAN "::" DEFAULT, __func__);  \
-    printf( YELLOW "%d  " DEFAULT , __LINE__ );        \
-    printf( RED "[ERROR]\t"  DEFAULT);                  \
-    printf( RED msg"\n" DEFAULT); } while(0)
+#define ERR_LOG(msg, ...)  do {                             \
+        printf( YELLOW "%s" CYAN "::" DEFAULT , __FILE__);   \
+        printf( YELLOW "%s" CYAN "::" DEFAULT, __func__);  \
+        printf( YELLOW "%d  " DEFAULT , __LINE__ );        \
+        printf( RED "[ERROR]\t"  DEFAULT);                  \
+        printf( RED msg, ##__VA_ARGS__);\
+        printf(DEFAULT "\n");\
+    } while(0)
 
 
 

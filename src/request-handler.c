@@ -7,6 +7,16 @@
 #include "response-build.h"
 #include "ds/ht.h"
 
+static const char *DOC_ROOT = NULL;
+
+void set_document_root(const char *doc_root) {
+    DOC_ROOT = doc_root;
+}
+
+const char* get_document_root(void) {
+    return DOC_ROOT;
+}
+
 #define BUILD_RESPONSE_DEFAULT_PAGE(response_ptr, code, version, ...) \
     do {\
         if (!is_head_req)\
@@ -26,11 +36,11 @@
 static int handle_get_head_req(struct http_resp_s **resp, http_request_t *req, bool is_head_req) {
     int rv = 0;
 
-    char path[1024] = DOC_ROOT;
+    char path[PATH_LEN * 2] = {0};
     struct stat st = {0};
 
     // TODO: Normalize/Decode Path
-    strcat(path, req->path);
+    sprintf(path, "%s%s", get_document_root(), DOC_ROOT[strlen(DOC_ROOT) - 1] == '/' ? &req->path[1]: req->path);
 
     if (strcmp(req->path, "/") == 0) {
         BUILD_RESPONSE_DEFAULT_PAGE(resp, STATUS_OK, HTTP_VERSION(1.0), path, req->path);

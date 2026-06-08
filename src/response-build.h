@@ -55,7 +55,6 @@
 
 #define HEADER_CRLF                 "\r\n"
 
-#define DOC_ROOT "/tmp/miz"
 
 typedef enum {
     STATUS_OK = 200,

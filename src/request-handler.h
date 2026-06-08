@@ -56,6 +56,8 @@ typedef struct http_parser_s {
 
 struct http_resp_s;
 
+void set_document_root(const char *doc_root);
+const char* get_document_root(void);
 int validate_http_version(char *version);
 void handle_unsupported_version(struct http_resp_s **resp);
 void handle_unsupported_method(struct http_resp_s **resp, const char *method);

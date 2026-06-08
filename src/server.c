@@ -5,7 +5,26 @@ uint16_t num_active_clients = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
-struct sockaddr_storage populate_server_address(in_port_t port, char *ip_address) {
+static struct sockaddr_storage populate_server_address(in_port_t port, const char *ip_address);
+static uint16_t get_port(struct sockaddr_storage *addr);
+static void *get_ip(struct sockaddr_storage *addr);
+
+
+static uint16_t get_port(struct sockaddr_storage *addr) {
+    return
+            addr->ss_family == AF_INET               ?
+            ((struct sockaddr_in *)  addr)->sin_port :
+            ((struct sockaddr_in6 *) addr)->sin6_port;
+}
+
+static void *get_ip(struct sockaddr_storage *addr) {
+    return
+            addr->ss_family == AF_INET                          ?
+            (void *) &((struct sockaddr_in  *)addr)->sin_addr   :
+            (void *) &((struct sockaddr_in6 *)addr)->sin6_addr  ;
+}
+
+static struct sockaddr_storage populate_server_address(in_port_t port, const char *ip_address) {
     struct sockaddr_storage address = {0};
     struct sockaddr_in      *v4     = (struct sockaddr_in *) &address;
     struct sockaddr_in6     *v6     = (struct sockaddr_in6 *) &address;
@@ -27,7 +46,7 @@ struct sockaddr_storage populate_server_address(in_port_t port, char *ip_address
     return address;
 }
 
-void construct_server(server_ctx_t  *server, in_port_t port, char *ip_address, int backlog) {
+void construct_server(server_ctx_t  *server, in_port_t port, const char *ip_address, int backlog) {
     int rv                            = OK;
     int reuse                           = 1;
 
@@ -62,20 +81,6 @@ void construct_server(server_ctx_t  *server, in_port_t port, char *ip_address, i
     }
 
     printf("Server listening on %s:%u ....\n", ip_address, port);
-}
-
-uint16_t get_port(struct sockaddr_storage *addr) {
-    return
-            addr->ss_family == AF_INET               ?
-            ((struct sockaddr_in *)  addr)->sin_port :
-            ((struct sockaddr_in6 *) addr)->sin6_port;
-}
-
-void *get_ip(struct sockaddr_storage *addr) {
-    return
-            addr->ss_family == AF_INET                          ?
-            (void *) &((struct sockaddr_in  *)addr)->sin_addr   :
-            (void *) &((struct sockaddr_in6 *)addr)->sin6_addr  ;
 }
 
 client_ctx_t *accept_connection(server_ctx_t *server) {

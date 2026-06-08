@@ -22,6 +22,5 @@ typedef struct {
     srv_event_e event_trigger;
 } srv_sm_t;
 
-int handle_srv_states(void);
-
+int handle_srv_states(const char *ip_address, int port);
 #endif

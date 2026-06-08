@@ -218,7 +218,7 @@ static int send_mem_response_body(client_ctx_t *conn_ctx, char *buffer, size_t r
     size_t sent = 0;
     ssize_t rv  = 0;
     while (sent < response_size) {
-        ssize_t remaining = response_size - sent;
+        size_t remaining = response_size - sent;
         rv = send(conn_ctx->fd, buffer + sent, remaining, 0);
         if (rv < 0) {
             return FAIL;

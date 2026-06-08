@@ -31,17 +31,13 @@ static int on_error_server(server_ctx_t *server) {
     return FAIL;
 }
 
-int handle_srv_states(void) {
+int handle_srv_states(const char *ip_address, int port) {
     int ret = OK;
     server_ctx_t server   = {
             .sm = { .current_state = SRV_STATE_INIT},
     };
     srv_sm_t *server_sm = &server.sm;
     client_ctx_t *new_con  = NULL;
-
-
-    char *ip_address = "127.0.0.4";
-    uint16_t port    = 8080;
 
     while (true) {
         switch (server_sm->current_state) {
