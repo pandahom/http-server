@@ -10,10 +10,6 @@ local document root.
 - Listens on `127.0.0.4:8080` by default with a TCP backlog of `5`.
 - Lets you configure the listen IP address, TCP port, and document root at
   startup with command-line options.
-- Validates that the listen address is an IPv4 or IPv6 literal.
-- Validates that the listen port is in the range `1` through `65535`.
-- Validates that the document root exists and is a directory before the server
-  starts.
 - Handles each accepted client connection in a detached POSIX thread.
 - Parses the HTTP request line and headers with an internal state-machine parser.
 - Accepts `HTTP/1.0` and `HTTP/1.1` requests.
@@ -21,7 +17,6 @@ local document root.
     - `GET` for files and directories.
     - `HEAD` for files and directories.
 - Generates a simple HTML directory listing for directory requests.
-- Sends file bodies with `sendfile(2)`.
 - Adds `Connection: Close`, `Content-Type`, and `Content-Length` headers to
   generated responses.
 - Returns built-in HTML error pages for unsupported methods, missing paths, and
