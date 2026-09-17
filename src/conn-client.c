@@ -3,6 +3,7 @@
 #include "response-build.h"
 #include <pthread.h>
 #include <errno.h>
+#include <stdio.h>
 #include <sys/sendfile.h>
 
 static size_t compute_response_size(http_resp_t *resp);
@@ -143,12 +144,6 @@ void destroy_connection(client_ctx_t *conn_ctx) {
     if (!conn_ctx)
         return;
 
-    pthread_mutex_lock(&mutex);
-    num_active_clients--;
-    if (num_active_clients == 0)
-        pthread_cond_signal(&cond);
-    pthread_mutex_unlock(&mutex);
-
     if (conn_ctx->parser) {
         ht_destroy(&conn_ctx->parser->req.headers);
         free(conn_ctx->parser);
@@ -226,4 +221,10 @@ static int send_mem_response_body(client_ctx_t *conn_ctx, char *buffer, size_t r
         sent += rv;
     }
     return OK;
+}
+
+void send_service_unavailable(client_ctx_t *conn) {
+    receive_msg(conn);
+    handle_service_unavailable(&conn->response);
+    send_msg(conn);
 }

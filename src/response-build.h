@@ -33,11 +33,13 @@
 #define HTTP_STATUS_FORBIDDEN               "403 Forbidden"
 #define HTTP_STATUS_NOT_FOUND               "404 Not Found"
 #define HTTP_STATUS_NOT_IMPLEMENTED         "501 Not Implemented"
+#define HTTP_STATUS_SERVICE_UNAVAILABLE     "503 Service Unavailable"
 #define HTTP_STATUS_VERSION_NOT_SUPPORTED   "505 HTTP Version Not Supported"
 
 #define HEADER_CONTENT_TYPE "Content-Type"
 #define HEADER_CONTENT_LENGTH "Content-Length"
 #define HEADER_CONNECTION "Connection"
+#define HEADER_RETRY_AFTER "Retry-After"
 
 // Content-Types
 #define HEADER_CONTENT_VALUE_TYPE_TEXT_HTML          "text/html"
@@ -65,6 +67,7 @@ typedef enum {
     STATUS_Forbidden = 403,
     STATUS_Not_Found = 404,
     STATUS_Not_Implemented = 501,
+    STATUS_Service_Unavailable = 503,
     STATUS_HTTP_Version_Not_Supported = 505
 } http_code_e;
 

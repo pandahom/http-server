@@ -9,6 +9,7 @@
 #include "static-response-bodies/http_400.h"
 #include "static-response-bodies/http_404.h"
 #include "static-response-bodies/http_500.h"
+#include "static-response-bodies/http_503.h"
 #include "static-response-bodies/http_505.h"
 #include "static-response-bodies/http_501.h"
 #include "static-response-bodies/default_dir_list_page.h"
@@ -25,6 +26,7 @@ static const struct {
         {STATUS_Forbidden,                  HTTP_STATUS_FORBIDDEN},
         {STATUS_Not_Found,                  HTTP_STATUS_NOT_FOUND},
         {STATUS_Not_Implemented,            HTTP_STATUS_NOT_IMPLEMENTED},
+        {STATUS_Service_Unavailable,            HTTP_STATUS_SERVICE_UNAVAILABLE},
         {STATUS_HTTP_Version_Not_Supported, HTTP_STATUS_VERSION_NOT_SUPPORTED}
 };
 static http_resp_t *http_response_init(void);
@@ -313,6 +315,8 @@ static int build_http_response_default_page_impl(http_resp_t** resp, http_code_e
             rv = populate_entity_headers(new_response, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
             if (rv == FAIL)
                 return FAIL;
+            if (http_response_add_header(new_response, HEADER_RETRY_AFTER, "1") != 0)
+                return FAIL;
 
             break;
         case STATUS_HTTP_Version_Not_Supported:
@@ -327,6 +331,23 @@ static int build_http_response_default_page_impl(http_resp_t** resp, http_code_e
 
             rv = populate_entity_headers(new_response, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
             if (rv == FAIL)
+                return FAIL;
+
+            break;
+        case STATUS_Service_Unavailable:
+            if (include_body) {
+                content_length = http_response_add_body(new_response, BODY_503);
+                new_response->body.mem.len = content_length;
+            } else
+                content_length = http_response_add_body(new_response, BODY_503);
+
+            if (content_length < 0)
+                return FAIL;
+
+            rv = populate_entity_headers(new_response, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
+            if (rv == FAIL)
+                return FAIL;
+            if (http_response_add_header(new_response, HEADER_RETRY_AFTER, "1") != 0)
                 return FAIL;
 
             break;

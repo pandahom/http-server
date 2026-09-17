@@ -4,7 +4,9 @@
 
 struct http_parser_s;
 struct http_resp_s;
-typedef struct {
+
+typedef struct client_ctx_s client_ctx_t;
+struct client_ctx_s {
     struct sockaddr_storage address;
     int fd;
     char received_msg[MAX_RECEIVE_BYTES];
@@ -18,13 +20,14 @@ typedef struct {
     conn_sm_t sm;
     struct http_parser_s *parser;
     struct http_resp_s *response;
-} client_ctx_t;
+};
 
 void receive_msg(client_ctx_t *conn);
 void parse_request(client_ctx_t *conn);
 int process_request(client_ctx_t *conn);
 char* build_response(client_ctx_t *, void*);
 void send_msg(client_ctx_t *conn);
+void send_service_unavailable(client_ctx_t *conn);
 void destroy_connection(client_ctx_t *conn);
 
 #endif

@@ -74,6 +74,10 @@ void handle_unsupported_method(struct http_resp_s **resp, const char *method) {
     build_http_response_default_page(resp, STATUS_Not_Implemented, HTTP_VERSION(1.0), method);
 }
 
+void handle_service_unavailable(struct http_resp_s **resp) {
+    build_http_response_default_page(resp, STATUS_Service_Unavailable, HTTP_VERSION(1.0), NULL);
+}
+
 int handle_get_req(struct http_resp_s **resp, http_request_t *req)  {
     return handle_get_head_req(resp, req, false);
 }
