@@ -1,5 +1,6 @@
 CC 				:= gcc
 CFLAGS 			:= -Werror -Wall -Wextra -c -g
+LFLAGS          := -pthread
 
 BUILD_DIR 	 	:= build
 SRC_DIR 	 	:= src
@@ -7,7 +8,8 @@ DS_DIR			:= src/ds
 HTML_PAGES		:= src/static-response-bodies
 
 DS 				:= $(DS_DIR)/linked-list.c \
-				   $(DS_DIR)/ht.c
+				   $(DS_DIR)/ht.c \
+				   $(DS_DIR)/queue.c
 
 SRC 			:= 	$(SRC_DIR)/server-sm.c \
 					$(SRC_DIR)/main.c   \
@@ -17,6 +19,7 @@ SRC 			:= 	$(SRC_DIR)/server-sm.c \
 				   $(SRC_DIR)/request-handler.c \
 				   $(SRC_DIR)/response-build.c \
 				   $(SRC_DIR)/path-handler.c \
+				   $(SRC_DIR)/thread.c 
 
  HEADER_FILES	:= $(SRC_DIR)/common.h \
 				   $(SRC_DIR)/server-sm.h \
@@ -34,7 +37,9 @@ SRC 			:= 	$(SRC_DIR)/server-sm.c \
 				   $(HTML_PAGES)/http_501.h \
 				   $(HTML_PAGES)/default_dir_list_page.h \
 				   $(DS_DIR)/linked-list.h \
-				   $(DS_DIR)/ht.h
+				   $(DS_DIR)/ht.h \
+				   $(DS_DIR)/queue.h \
+				   $(SRC_DIR)/thread.h
 
 
 OBJ	   := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
@@ -51,7 +56,7 @@ $(BUILD_DIR):
 
 $(TARGET): $(OBJ) $(DS_OBJ) $(HEADER_FILES)
 	@echo "Linking object files into $(TARGET)..."
-	@$(CC) $(OBJ) $(DS_OBJ) -o $@
+	@$(CC) $(OBJ) $(DS_OBJ) -o $@ $(LFLAGS)
 	@echo "Build complete. Executable: ./$(TARGET)"
 
 $(BUILD_DIR)/%.o: src/%.c
@@ -67,5 +72,5 @@ clean:
 	@echo "Cleaning up buid files..."
 	@rm -f $(OBJ) 2> /dev/null
 	@rm -rf $(BUILD_DIR) 2> /dev/null
-	@rm $(TARGET) 2> /dev/null
+	@if [ -f "$(TARGET)" ];then rm -f $(TARGET) ; fi
 	@echo "Clean up complete."

@@ -22,12 +22,7 @@ static int on_error_server(server_ctx_t *server) {
     close(server->fd);
     printf("Terminating Program (Waiting for threads to be finished) ....\n");
 
-    pthread_mutex_lock(&mutex);
-
-    while (num_active_clients > 0)
-        pthread_cond_wait(&cond, &mutex);
-
-    pthread_mutex_unlock(&mutex);
+    thread_pool_destroy(server->th_pool);
 
     return FAIL;
 }
@@ -43,13 +38,13 @@ int handle_srv_states(const char *ip_address, int port) {
     while (true) {
         switch (server_sm->current_state) {
             case SRV_STATE_INIT:
-                construct_server(&server, port, ip_address, 5);
+                construct_server(&server, port, ip_address, SOMAXCONN);
                 break;
             case SRV_STATE_LISTENING:
                 new_con = accept_connection(&server);
                 break;
             case SRV_STATE_ACCEPTED:
-                init_client_connection_thread(new_con, &server);
+                add_client_to_waiting_list(new_con, &server);
                 break;
             case SRV_STATE_ERROR:
                 ret = on_error_server(&server);

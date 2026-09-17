@@ -26,6 +26,6 @@ typedef struct {
     conn_event_e event_trigger;
 } conn_sm_t;
 
-void *handle_conn_states(void *arg);
+int  handle_conn_states(void *arg);
 
 #endif

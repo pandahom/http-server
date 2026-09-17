@@ -1,3 +1,4 @@
+#include "connection-sm.h"
 #include "conn-client.h"
 #include <pthread.h>
 
@@ -23,10 +24,12 @@ static const conn_state_e transition_table_client[CONN_STATE_COUNT][CONN_EVENT_C
         }
 };
 
-void *handle_conn_states(void *arg) {
+int handle_conn_states(void *arg) {
     client_ctx_t *conn_ctx = (client_ctx_t *) arg;
     if (conn_ctx == NULL)
-        return NULL;
+        return FAIL;
+
+    conn_ctx->sm.current_state = CONN_STATE_ACCEPTED;
 
     while (true) {
         switch (conn_ctx->sm.current_state) {
@@ -55,5 +58,5 @@ void *handle_conn_states(void *arg) {
         state_transit(&conn_ctx->sm);
     }
 return_val:
-    return NULL;
+    return OK;
 }
