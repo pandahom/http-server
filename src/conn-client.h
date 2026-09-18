@@ -22,7 +22,7 @@ void parse_request(client_ctx_t *conn);
 int process_request(client_ctx_t *conn);
 void send_msg(client_ctx_t *conn);
 void send_service_unavailable(client_ctx_t *conn);
-void destroy_connection(client_ctx_t *conn);
+void release_connection_resources(client_ctx_t *conn_ctx);
 client_ctx_t *client_ctx_alloc(void);
 void client_ctx_free(client_ctx_t *conn);
 void client_ctx_assign_fd_and_address(client_ctx_t *conn, int fd, struct sockaddr_storage *address);

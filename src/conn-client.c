@@ -177,7 +177,7 @@ cleanup:
     free(buf);
 }
 
-void destroy_connection(client_ctx_t *conn_ctx) {
+void release_connection_resources(client_ctx_t *conn_ctx) {
     if (!conn_ctx)
         return;
 

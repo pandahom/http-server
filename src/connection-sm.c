@@ -46,11 +46,11 @@ int handle_conn_states(void *arg) {
                 send_msg(conn_ctx);
                 break;
             case CONN_STATE_CLOSED:
-                destroy_connection(conn_ctx);
+                release_connection_resources(conn_ctx);
                 goto return_val;
             case CONN_STATE_ERROR:
                 ERR_LOG("Encounter error on handling connection");
-                destroy_connection(conn_ctx);
+                release_connection_resources(conn_ctx);
                 return FAIL;
             default:
                 break;
