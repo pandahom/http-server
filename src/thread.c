@@ -110,6 +110,7 @@ static void *worker_run(void* arg) {
         if (rv == FAIL) {
 
         }
+        client_ctx_reset(conn);
     }
     
     return NULL;

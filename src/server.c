@@ -148,6 +148,7 @@ void add_client_to_waiting_list(conn_job_arg_t *arg, server_ctx_t *server) {
         tmp_conn->fd = arg->fd;
         send_service_unavailable(tmp_conn);
         release_connection_resources(tmp_conn);
+        client_ctx_reset(tmp_conn);
     }
     
     server->sm.event_trigger = SRV_EVENT_RESET;

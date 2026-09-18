@@ -44,6 +44,12 @@ void client_ctx_free(client_ctx_t *conn) {
     free(conn);
 }
 
+void client_ctx_reset(client_ctx_t *conn) {
+    memset(conn->parser, 0, sizeof(http_parser_t));
+    memset(conn->response, 0, sizeof(http_resp_t));
+    memset(conn, 0, offsetof(client_ctx_t, parser)); // memset zero upto parser part (we must not zero parser or response pointers)
+}
+
 void client_ctx_assign_fd_and_address(client_ctx_t *conn, int fd, struct sockaddr_storage *address) {
     conn->fd = fd;
     memcpy(&conn->address, address, sizeof(struct sockaddr_storage));
@@ -183,12 +189,11 @@ void release_connection_resources(client_ctx_t *conn_ctx) {
 
     if (conn_ctx->parser) {
         ht_destroy(&conn_ctx->parser->req.headers);
-        memset(conn_ctx->parser, 0, sizeof(http_parser_t));
     }
 
     if (conn_ctx->response) {
         ll_destroy(conn_ctx->response->headers, header_t , h, free(h->name), free(h->value));
-
+        conn_ctx->response->headers = NULL;
         switch (conn_ctx->response->body_type) {
             case BODY_TYPE_MEM:
                 free(conn_ctx->response->body.mem.data);
@@ -200,11 +205,9 @@ void release_connection_resources(client_ctx_t *conn_ctx) {
                 ERR_LOG("Unknown Body Type");
                 break;
         }
-        memset(conn_ctx->response, 0, sizeof(http_resp_t));
     }
 
     close(conn_ctx->fd);
-    memset(conn_ctx, 0, offsetof(client_ctx_t, parser)); // memset zero upto parser part (we do must not zero parser, response pointers)
 }
 
 static size_t compute_response_size(http_resp_t *resp) {
