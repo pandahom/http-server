@@ -23,6 +23,7 @@
 #define MAX_ADDR_LEN INET6_ADDRSTRLEN
 #define MAX_RECEIVE_BYTES   (5 * 1024)
 #define DEFAULT_STR_SIZE 1024
+#define CLIENT_RECV_TIMEOUT_SEC 30
 
 #define ERR_LOG(msg, ...)  do {                             \
         printf( YELLOW "%s" CYAN "::" DEFAULT , __FILE__);   \

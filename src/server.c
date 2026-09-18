@@ -130,6 +130,12 @@ void accept_connection(conn_job_arg_t *arg, server_ctx_t *server) {
         return;
     }
 
+    struct timeval recv_timeout = { .tv_sec = CLIENT_RECV_TIMEOUT_SEC, .tv_usec = 0 };
+    if (setsockopt(arg->fd, SOL_SOCKET, SO_RCVTIMEO, &recv_timeout, sizeof(recv_timeout)) == -1) {
+        ERR_LOG("setsockopt()");
+    }
+    }
+
     if (inet_ntop(arg->address.ss_family, get_ip(&arg->address), ip_buf, MAX_ADDR_LEN) == NULL) {
         ERR_LOG("inet_ntop()");
     }

@@ -78,7 +78,10 @@ void receive_msg(client_ctx_t *conn_ctx) {
 
     received_bytes = recv(conn_ctx->fd, conn_ctx->received_msg, MAX_RECEIVE_BYTES, 0);
     if (received_bytes == -1) {
-        ERR_LOG("recv() returns -1");
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            ERR_LOG("recv() timed out after %d seconds", CLIENT_RECV_TIMEOUT_SEC);
+        else
+            ERR_LOG("recv() returns -1");
         conn_ctx->sm.event_trigger = CONN_EVENT_ERROR;
         return;
     }
@@ -217,6 +220,8 @@ void release_connection_resources(client_ctx_t *conn_ctx) {
                 break;
             case BODY_TYPE_FILE:
                 close(conn_ctx->response->body.file.fd);
+                break;
+            case BODY_TYPE_NONE:
                 break;
             default:
                 ERR_LOG("Unknown Body Type");
