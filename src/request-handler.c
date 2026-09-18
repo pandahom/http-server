@@ -33,7 +33,7 @@ const char* get_document_root(void) {
                 rv = build_http_response_file_headers(response_ptr, code, version, __VA_ARGS__);\
         } while(0)
 
-static int handle_get_head_req(struct http_resp_s **resp, http_request_t *req, bool is_head_req) {
+static int handle_get_head_req(struct http_resp_s *resp, http_request_t *req, bool is_head_req) {
     int rv = 0;
 
     char path[PATH_LEN * 2] = {0};
@@ -66,23 +66,23 @@ int validate_http_version(char *version) {
     return rv;
 }
 
-void handle_unsupported_version(struct http_resp_s **resp) {
+void handle_unsupported_version(struct http_resp_s *resp) {
     build_http_response_default_page(resp, STATUS_HTTP_Version_Not_Supported, HTTP_VERSION(1.0), NULL);
 }
 
-void handle_unsupported_method(struct http_resp_s **resp, const char *method) {
+void handle_unsupported_method(struct http_resp_s *resp, const char *method) {
     build_http_response_default_page(resp, STATUS_Not_Implemented, HTTP_VERSION(1.0), method);
 }
 
-void handle_service_unavailable(struct http_resp_s **resp) {
+void handle_service_unavailable(struct http_resp_s *resp) {
     build_http_response_default_page(resp, STATUS_Service_Unavailable, HTTP_VERSION(1.0), NULL);
 }
 
-int handle_get_req(struct http_resp_s **resp, http_request_t *req)  {
+int handle_get_req(struct http_resp_s *resp, http_request_t *req)  {
     return handle_get_head_req(resp, req, false);
 }
 
-int handle_head_req(struct http_resp_s **resp, http_request_t *req)  {
+int handle_head_req(struct http_resp_s *resp, http_request_t *req)  {
     return handle_get_head_req(resp, req, true);
 }
 

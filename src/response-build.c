@@ -29,7 +29,6 @@ static const struct {
         {STATUS_Service_Unavailable,            HTTP_STATUS_SERVICE_UNAVAILABLE},
         {STATUS_HTTP_Version_Not_Supported, HTTP_STATUS_VERSION_NOT_SUPPORTED}
 };
-static http_resp_t *http_response_init(void);
 
 static int populate_status_line(http_resp_t *resp, http_code_e code, const char *version);
 static const char *get_content_type(const char *path);
@@ -41,9 +40,9 @@ static ssize_t http_response_add_body(http_resp_t *resp, const char *format, ...
 static int http_response_add_header(http_resp_t *resp, char *name, char *value);
 static int populate_entity_headers(http_resp_t *resp, const char *content_type, size_t content_len);
 
-static int build_http_response_default_page_impl(http_resp_t** resp, http_code_e code, const char* version,
+static int build_http_response_default_page_impl(http_resp_t* resp, http_code_e code, const char* version,
     bool include_body, va_list ap);
-static int build_http_response_file_impl(http_resp_t** resp, http_code_e code, const char* version, const char *path, bool include_body);
+static int build_http_response_file_impl(http_resp_t* resp, http_code_e code, const char* version, const char *path, bool include_body);
 
 static const char* get_status_message(http_code_e code) {
     size_t n = sizeof(http_status) / sizeof(http_status[0]);
@@ -112,7 +111,7 @@ const char *get_content_type(const char *path) {
     return HEADER_CONTENT_VALUE_TYPE_APP_OCTECT_STREAM;
 }
 
-static http_resp_t *http_response_init(void) {
+http_resp_t *http_response_alloc(void) {
     http_resp_t *new_response = (http_resp_t *) calloc(1, sizeof(http_resp_t));
 
     if (new_response == NULL)
@@ -187,18 +186,15 @@ static ssize_t http_response_add_body(http_resp_t *resp, const char *format, ...
     return body_len;
 }
 
-static int build_http_response_file_impl(http_resp_t** resp, http_code_e code, const char* version, const char *path, bool include_body) {
-    http_resp_t *new_response = NULL;
+static int build_http_response_file_impl(http_resp_t* resp, http_code_e code, const char* version, const char *path, bool include_body) {
     int fd;
     struct stat st = {0};
     int rv = OK;
     const char *content_type = NULL;
 
-    new_response = http_response_init();
-    if (!new_response) {
+    if (resp == NULL) {
         return FAIL;
     }
-    *resp = new_response;
 
     rv = stat(path, &st);
     if (rv == FAIL) {
@@ -206,7 +202,7 @@ static int build_http_response_file_impl(http_resp_t** resp, http_code_e code, c
         return FAIL;
     }
 
-    rv = populate_status_line(new_response, code, version);
+    rv = populate_status_line(resp, code, version);
     if (rv == FAIL) {
         ERR_LOG("Populating response status line");
         return FAIL;
@@ -214,7 +210,7 @@ static int build_http_response_file_impl(http_resp_t** resp, http_code_e code, c
 
     content_type = get_content_type(path);
 
-    rv = populate_entity_headers(new_response, content_type, st.st_size);
+    rv = populate_entity_headers(resp, content_type, st.st_size);
     if (rv == FAIL) {
         ERR_LOG("Populating entity headers");
         return FAIL;
@@ -230,22 +226,22 @@ static int build_http_response_file_impl(http_resp_t** resp, http_code_e code, c
         return FAIL;
     }
 
-    new_response->body.file.len = st.st_size;
-    new_response->body.file.fd = fd;
-    new_response->body_type = BODY_TYPE_FILE;
+    resp->body.file.len = st.st_size;
+    resp->body.file.fd = fd;
+    resp->body_type = BODY_TYPE_FILE;
 
     return OK;
 }
 
-int build_http_response_file_headers(http_resp_t** resp, http_code_e code, const char* version, const char *path) {
+int build_http_response_file_headers(http_resp_t* resp, http_code_e code, const char* version, const char *path) {
     return build_http_response_file_impl(resp, code, version, path, false);
 }
 
-int build_http_response_file(http_resp_t** resp, http_code_e code, const char* version, const char *path) {
+int build_http_response_file(http_resp_t* resp, http_code_e code, const char* version, const char *path) {
     return build_http_response_file_impl(resp, code, version, path, true);
 }
 
-static int build_http_response_default_page_impl(http_resp_t** resp, http_code_e code, const char* version,
+static int build_http_response_default_page_impl(http_resp_t* resp, http_code_e code, const char* version,
     bool include_body, va_list ap) {
 
     int rv = 0;
@@ -253,14 +249,7 @@ static int build_http_response_default_page_impl(http_resp_t** resp, http_code_e
     arg = va_arg(ap, char *);
     ssize_t content_length = 0;
 
-    http_resp_t *new_response = http_response_init();
-    if (!new_response) {
-        ERR_LOG("Could not allocate for http_resp_t");
-        return FAIL;
-    }
-    *resp = new_response;
-
-    rv = populate_status_line(new_response, code, version);
+    rv = populate_status_line(resp, code, version);
     if (rv == FAIL)
         return FAIL;
 
@@ -273,81 +262,81 @@ static int build_http_response_default_page_impl(http_resp_t** resp, http_code_e
             list_dir(arg,elemtns);
 
             if (include_body) {
-                content_length =  http_response_add_body(new_response, DEFAULT_PAGE, arg, arg2,  elemtns);
-                new_response->body.mem.len = content_length;
+                content_length =  http_response_add_body(resp, DEFAULT_PAGE, arg, arg2,  elemtns);
+                resp->body.mem.len = content_length;
             } else
                 content_length = http_response_compute_content_length(DEFAULT_PAGE, arg, arg2,  elemtns);
 
             if (content_length < 0)
                 return FAIL;
 
-            rv = populate_entity_headers(new_response, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
+            rv = populate_entity_headers(resp, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
             if (rv == FAIL)
                 return FAIL;
 
             break;
         case STATUS_Not_Found:
             if (include_body) {
-                content_length = http_response_add_body(new_response, BODY_404, arg);
-                new_response->body.mem.len = content_length;
+                content_length = http_response_add_body(resp, BODY_404, arg);
+                resp->body.mem.len = content_length;
             } else
-                content_length = http_response_add_body(new_response, BODY_404, arg);
+                content_length = http_response_add_body(resp, BODY_404, arg);
 
             if (content_length < 0)
                 return FAIL;
 
-            rv = populate_entity_headers(new_response, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
+            rv = populate_entity_headers(resp, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
             if (rv == FAIL)
                 return FAIL;
 
             break;
         case STATUS_Not_Implemented:
             if (include_body) {
-                content_length = http_response_add_body(new_response, BODY_501, (char *) arg);
-                new_response->body.mem.len = content_length;
+                content_length = http_response_add_body(resp, BODY_501, (char *) arg);
+                resp->body.mem.len = content_length;
             } else
-                content_length = http_response_add_body(new_response, BODY_501, (char *) arg);;
+                content_length = http_response_add_body(resp, BODY_501, (char *) arg);;
 
 
             if (content_length < 0)
                 return FAIL;
 
-            rv = populate_entity_headers(new_response, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
+            rv = populate_entity_headers(resp, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
             if (rv == FAIL)
                 return FAIL;
-            if (http_response_add_header(new_response, HEADER_RETRY_AFTER, "1") != 0)
+            if (http_response_add_header(resp, HEADER_RETRY_AFTER, "1") != 0)
                 return FAIL;
 
             break;
         case STATUS_HTTP_Version_Not_Supported:
             if (include_body) {
-                content_length = http_response_add_body(new_response, BODY_505);
-                new_response->body.mem.len = content_length;
+                content_length = http_response_add_body(resp, BODY_505);
+                resp->body.mem.len = content_length;
             } else
-                content_length = http_response_add_body(new_response, BODY_505);
+                content_length = http_response_add_body(resp, BODY_505);
 
             if (content_length < 0)
                 return FAIL;
 
-            rv = populate_entity_headers(new_response, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
+            rv = populate_entity_headers(resp, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
             if (rv == FAIL)
                 return FAIL;
 
             break;
         case STATUS_Service_Unavailable:
             if (include_body) {
-                content_length = http_response_add_body(new_response, BODY_503);
-                new_response->body.mem.len = content_length;
+                content_length = http_response_add_body(resp, BODY_503);
+                resp->body.mem.len = content_length;
             } else
-                content_length = http_response_add_body(new_response, BODY_503);
+                content_length = http_response_add_body(resp, BODY_503);
 
             if (content_length < 0)
                 return FAIL;
 
-            rv = populate_entity_headers(new_response, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
+            rv = populate_entity_headers(resp, HEADER_CONTENT_VALUE_TYPE_TEXT_HTML,  content_length);
             if (rv == FAIL)
                 return FAIL;
-            if (http_response_add_header(new_response, HEADER_RETRY_AFTER, "1") != 0)
+            if (http_response_add_header(resp, HEADER_RETRY_AFTER, "1") != 0)
                 return FAIL;
 
             break;
@@ -358,7 +347,7 @@ static int build_http_response_default_page_impl(http_resp_t** resp, http_code_e
     return 0;
 }
 
-int build_http_response_default_page(http_resp_t** resp, http_code_e code, const char* version, ...) {
+int build_http_response_default_page(http_resp_t* resp, http_code_e code, const char* version, ...) {
     int rv = 0;
     va_list ap;
     va_start(ap, version);
@@ -369,7 +358,7 @@ int build_http_response_default_page(http_resp_t** resp, http_code_e code, const
     return rv;
 }
 
-int build_http_response_default_page_headers(http_resp_t** resp, http_code_e code, const char* version, ...) {
+int build_http_response_default_page_headers(http_resp_t* resp, http_code_e code, const char* version, ...) {
     int rv = 0;
     va_list ap;
     va_start(ap, version);
