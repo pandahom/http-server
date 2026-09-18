@@ -9,12 +9,40 @@
 
 static const char *DOC_ROOT = NULL;
 
+
+struct http_parser_s {
+    enum parse_e state;
+    http_request_t req;
+
+    // temporary buffers while building current token
+    char   token[1024];
+    size_t token_len;
+
+   // for headers, we need to remember the name
+   // while we go parse the value
+    char current_header_name[256];
+
+   // size_t body_received;
+};
+
 void set_document_root(const char *doc_root) {
     DOC_ROOT = doc_root;
 }
 
 const char* get_document_root(void) {
     return DOC_ROOT;
+}
+
+http_parser_t *http_parser_alloc(void) {
+    return calloc(1, sizeof(http_parser_t));
+}
+
+void http_parser_reset(http_parser_t *parser) {
+    memset(parser, 0, sizeof(http_parser_t));
+}
+
+http_request_t *http_parser_get_request(http_parser_t *pr) {
+    return &pr->req;
 }
 
 #define BUILD_RESPONSE_DEFAULT_PAGE(response_ptr, code, version, ...) \

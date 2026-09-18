@@ -10,25 +10,6 @@
 #define HEADER_VAL_LEN  1024
 #define HEADER_NAME_LEN 256
 
-
-
-typedef struct {
-    char name[HEADER_NAME_LEN];
-    char value[HEADER_VAL_LEN];
-} http_header_t;
-
-typedef struct {
-    // Request Line
-    char method[METHOD_LEN];
-    char path[PATH_LEN];
-    char version[VERSION_LEN];
-
-    // Headers
-    ht_t headers;
-
-    char *body;
-} http_request_t;
-
 enum parse_e {
     MSG_STATE_REQUEST_LINE,
     MSG_STATE_LEADING_SPACE,
@@ -39,20 +20,19 @@ enum parse_e {
     MSG_STATE_ERROR
 };
 
-typedef struct http_parser_s {
-    enum parse_e state;
-    http_request_t req;
+typedef struct http_request_s { 
+    // Request Line
+    char method[METHOD_LEN];
+    char path[PATH_LEN];
+    char version[VERSION_LEN];
 
-    // temporary buffers while building current token
-    char   token[1024];
-    size_t token_len;
+    // Headers
+    ht_t headers;
 
-//    // for headers, we need to remember the name
-//    // while we go parse the value
-    char current_header_name[256];
-
-//    size_t body_received;
-} http_parser_t;
+    char *body;
+} http_request_t;
+ 
+typedef struct http_parser_s http_parser_t;
 
 struct http_resp_s;
 
@@ -65,4 +45,7 @@ void handle_service_unavailable(struct http_resp_s *resp);
 int handle_get_req(struct http_resp_s *resp, http_request_t *req);
 int handle_head_req(struct http_resp_s *resp, http_request_t *req);
 int request_state_handler(http_parser_t  *parser, const char *raw_msg, size_t len);
+http_parser_t *http_parser_alloc(void);
+void http_parser_reset(http_parser_t *parser);
+http_request_t *http_parser_get_request(http_parser_t *pr);
 #endif

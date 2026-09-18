@@ -7,6 +7,17 @@
 #include <stdio.h>
 #include <sys/sendfile.h>
 
+struct client_ctx_s {
+    struct sockaddr_storage address;
+    int fd;
+    char received_msg[MAX_RECEIVE_BYTES];
+    ssize_t received_bytes;
+
+    conn_sm_t sm;
+    struct http_parser_s *parser;
+    struct http_resp_s *response;
+};
+
 static size_t compute_response_size(http_resp_t *resp);
 static int send_headers(client_ctx_t *conn_ctx, char *buf, size_t total_size);
 static int send_file_response_body(client_ctx_t *conn_ctx, int file_fd, off_t file_size);
@@ -20,9 +31,9 @@ client_ctx_t *client_ctx_alloc(void) {
         return res;
     }
 
-    res->parser = calloc(1, sizeof(http_parser_t));
+    res->parser = http_parser_alloc();
     if (res->parser == NULL) {
-        ERR_LOG("calloc()");
+        ERR_LOG("http_parser_alloc()");
         return res;
     }
 
@@ -45,14 +56,19 @@ void client_ctx_free(client_ctx_t *conn) {
 }
 
 void client_ctx_reset(client_ctx_t *conn) {
-    memset(conn->parser, 0, sizeof(http_parser_t));
+    http_parser_reset(conn->parser);
     memset(conn->response, 0, sizeof(http_resp_t));
     memset(conn, 0, offsetof(client_ctx_t, parser)); // memset zero upto parser part (we must not zero parser or response pointers)
 }
 
 void client_ctx_assign_fd_and_address(client_ctx_t *conn, int fd, struct sockaddr_storage *address) {
     conn->fd = fd;
-    memcpy(&conn->address, address, sizeof(struct sockaddr_storage));
+    if (address)
+        memcpy(&conn->address, address, sizeof(struct sockaddr_storage));
+}
+
+conn_sm_t *client_ctx_sm(client_ctx_t *conn) {
+    return &conn->sm;
 }
 
 void receive_msg(client_ctx_t *conn_ctx) {
@@ -85,7 +101,7 @@ void parse_request(client_ctx_t *conn) {
 int process_request(client_ctx_t *conn) {
     int            rv    = 0;
     http_parser_t  *pr   = conn->parser;
-    http_request_t *req  = &pr->req;
+    http_request_t *req  = http_parser_get_request(pr);
     http_resp_t    *resp = conn->response;
 
     rv = validate_http_version(req->version);
@@ -188,7 +204,8 @@ void release_connection_resources(client_ctx_t *conn_ctx) {
         return;
 
     if (conn_ctx->parser) {
-        ht_destroy(&conn_ctx->parser->req.headers);
+        http_request_t *req = http_parser_get_request(conn_ctx->parser); 
+        ht_destroy(&req->headers);
     }
 
     if (conn_ctx->response) {

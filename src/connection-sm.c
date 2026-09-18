@@ -28,11 +28,11 @@ int handle_conn_states(void *arg) {
     client_ctx_t *conn_ctx = (client_ctx_t *) arg;
     if (conn_ctx == NULL)
         return FAIL;
-
-    conn_ctx->sm.current_state = CONN_STATE_ACCEPTED;
+    conn_sm_t *conn_sm = client_ctx_sm(conn_ctx);
+    conn_sm->current_state = CONN_STATE_ACCEPTED;
 
     while (true) {
-        switch (conn_ctx->sm.current_state) {
+        switch (conn_sm->current_state) {
             case CONN_STATE_ACCEPTED:
                 receive_msg(conn_ctx);
                 break;
@@ -55,7 +55,7 @@ int handle_conn_states(void *arg) {
             default:
                 break;
         }
-        state_transit(&conn_ctx->sm);
+        state_transit(conn_sm);
     }
 return_val:
     return OK;

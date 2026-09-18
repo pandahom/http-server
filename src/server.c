@@ -1,5 +1,6 @@
 #include "server.h"
 #include "common.h"
+#include "conn-client.h"
 #include "thread.h"
 #include <errno.h>
 #include <pthread.h>
@@ -145,7 +146,7 @@ void add_client_to_waiting_list(conn_job_arg_t *arg, server_ctx_t *server) {
 
     if (rv != OK) {
         tmp_conn = server->opaque;
-        tmp_conn->fd = arg->fd;
+        client_ctx_assign_fd_and_address(tmp_conn, arg->fd, NULL);
         send_service_unavailable(tmp_conn);
         release_connection_resources(tmp_conn);
         client_ctx_reset(tmp_conn);
