@@ -6,6 +6,7 @@ typedef enum {
     SRV_STATE_INIT,
     SRV_STATE_LISTENING,
     SRV_STATE_ACCEPTED,
+    SRV_STATE_SHUTTING_DOWN,
     SRV_STATE_COUNT
 } srv_state_e;
 
@@ -14,6 +15,7 @@ typedef enum {
     SRV_EVENT_CONSTRUCTED,
     SRV_EVENT_CONNECTION_RECEIVED,
     SRV_EVENT_RESET,
+    SRV_EVENT_SHUTDOWN,
     SRV_EVENT_COUNT
 } srv_event_e;
 

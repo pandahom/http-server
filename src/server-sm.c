@@ -12,20 +12,22 @@ static const srv_state_e transition_table_server[SRV_STATE_COUNT][SRV_EVENT_COUN
     [SRV_STATE_LISTENING] = {
         [SRV_EVENT_RESET] = SRV_STATE_LISTENING,
         [SRV_EVENT_CONNECTION_RECEIVED] = SRV_STATE_ACCEPTED,
+        [SRV_EVENT_SHUTDOWN] = SRV_STATE_SHUTTING_DOWN,
     },
     [SRV_STATE_ACCEPTED] = {
             [SRV_EVENT_RESET] = SRV_STATE_LISTENING,
     }
 };
 
-static int on_error_server(server_ctx_t *server) {
+static void on_error_or_shutdown_server(server_ctx_t *server, srv_state_e state) {
     close(server->fd);
-    printf("Terminating Program (Waiting for threads to be finished) ....\n");
+    if (state == SRV_STATE_ERROR)
+        printf("Terminating Program (Waiting for threads to be finished) ....\n");
+    else if (state == SRV_STATE_SHUTTING_DOWN)
+        printf("Shutdown requested, waiting for in-flight requests to finish ....\n");
 
     thread_pool_destroy(server->th_pool);
     client_ctx_free(server->opaque);
-
-    return FAIL;
 }
 
 int handle_srv_states(const char *ip_address, int port) {
@@ -48,7 +50,12 @@ int handle_srv_states(const char *ip_address, int port) {
                 add_client_to_waiting_list(&arg, &server);
                 break;
             case SRV_STATE_ERROR:
-                ret = on_error_server(&server);
+                ret = FAIL;
+                on_error_or_shutdown_server(&server, server_sm->current_state);
+                goto done;
+            case SRV_STATE_SHUTTING_DOWN:
+                ret =  OK;
+                on_error_or_shutdown_server(&server, server_sm->current_state);;
                 goto done;
             default:
                 break;

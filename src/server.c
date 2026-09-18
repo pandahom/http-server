@@ -4,10 +4,16 @@
 #include "thread.h"
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
+#include <sys/time.h>
+
+static volatile sig_atomic_t g_shutdown_requested = 0;
 
 static struct sockaddr_storage populate_server_address(in_port_t port, const char *ip_address);
 static uint16_t get_port(struct sockaddr_storage *addr);
 static void *get_ip(struct sockaddr_storage *addr);
+static void handle_shutdown_signal(int sig);
+static void install_shutdown_handlers(void);
 
 
 static uint16_t get_port(struct sockaddr_storage *addr) {
@@ -46,9 +52,26 @@ static struct sockaddr_storage populate_server_address(in_port_t port, const cha
     return address;
 }
 
+static void handle_shutdown_signal(int sig) {
+    (void) sig;
+    g_shutdown_requested = 1;
+}
+
+static void install_shutdown_handlers(void) {
+    struct sigaction sa = {0};
+    sa.sa_handler = handle_shutdown_signal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+}
+
 void construct_server(server_ctx_t  *server, in_port_t port, const char *ip_address, int backlog) {
     int rv                            = OK;
     int reuse                           = 1;
+
+    install_shutdown_handlers();
 
     server->address = populate_server_address(port, ip_address);
     server->backlog = backlog;
@@ -122,18 +145,24 @@ void accept_connection(conn_job_arg_t *arg, server_ctx_t *server) {
     arg->fd = accept(server->fd, (struct sockaddr *) &arg->address, &client_addr_len);
 
     if (arg->fd == -1) {
-        ERR_LOG("accept()");
-        if (errno == EINVAL)
-            server->sm.event_trigger = SRV_EVENT_ERROR; 
-        else
-            server->sm.event_trigger = SRV_EVENT_RESET; 
+        if (g_shutdown_requested) {
+            server->sm.event_trigger = SRV_EVENT_SHUTDOWN;
+            return;
+        }
+
+        if (errno == EINVAL || errno == EINTR)
+            // interrupted by a signal we don't need to shut down for; just retry
+            server->sm.event_trigger = SRV_EVENT_ERROR;
+        else {
+            ERR_LOG("accept()");
+            server->sm.event_trigger = SRV_EVENT_RESET;
+        }
         return;
     }
 
     struct timeval recv_timeout = { .tv_sec = CLIENT_RECV_TIMEOUT_SEC, .tv_usec = 0 };
     if (setsockopt(arg->fd, SOL_SOCKET, SO_RCVTIMEO, &recv_timeout, sizeof(recv_timeout)) == -1) {
         ERR_LOG("setsockopt()");
-    }
     }
 
     if (inet_ntop(arg->address.ss_family, get_ip(&arg->address), ip_buf, MAX_ADDR_LEN) == NULL) {
