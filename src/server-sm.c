@@ -23,6 +23,7 @@ static int on_error_server(server_ctx_t *server) {
     printf("Terminating Program (Waiting for threads to be finished) ....\n");
 
     thread_pool_destroy(server->th_pool);
+    client_ctx_free(server->opaque);
 
     return FAIL;
 }
@@ -33,7 +34,7 @@ int handle_srv_states(const char *ip_address, int port) {
             .sm = { .current_state = SRV_STATE_INIT},
     };
     srv_sm_t *server_sm = &server.sm;
-    client_ctx_t *new_con  = NULL;
+    conn_job_arg_t arg = {0};
 
     while (true) {
         switch (server_sm->current_state) {
@@ -41,10 +42,10 @@ int handle_srv_states(const char *ip_address, int port) {
                 construct_server(&server, port, ip_address, SOMAXCONN);
                 break;
             case SRV_STATE_LISTENING:
-                new_con = accept_connection(&server);
+                accept_connection(&arg, &server);
                 break;
             case SRV_STATE_ACCEPTED:
-                add_client_to_waiting_list(new_con, &server);
+                add_client_to_waiting_list(&arg, &server);
                 break;
             case SRV_STATE_ERROR:
                 ret = on_error_server(&server);

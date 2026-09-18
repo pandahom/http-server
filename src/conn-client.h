@@ -12,11 +12,6 @@ struct client_ctx_s {
     char received_msg[MAX_RECEIVE_BYTES];
     ssize_t received_bytes;
 
-    struct {
-        char ip[MAX_ADDR_LEN];
-        uint16_t port;
-    } readable_format;
-
     conn_sm_t sm;
     struct http_parser_s *parser;
     struct http_resp_s *response;
@@ -25,9 +20,10 @@ struct client_ctx_s {
 void receive_msg(client_ctx_t *conn);
 void parse_request(client_ctx_t *conn);
 int process_request(client_ctx_t *conn);
-char* build_response(client_ctx_t *, void*);
 void send_msg(client_ctx_t *conn);
 void send_service_unavailable(client_ctx_t *conn);
 void destroy_connection(client_ctx_t *conn);
-
+client_ctx_t *client_ctx_alloc(void);
+void client_ctx_free(client_ctx_t *conn);
+void client_ctx_assign_fd_and_address(client_ctx_t *conn, int fd, struct sockaddr_storage *address);
 #endif

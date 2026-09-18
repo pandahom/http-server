@@ -83,6 +83,13 @@ void construct_server(server_ctx_t  *server, in_port_t port, const char *ip_addr
         goto on_error;
     }
 
+    server->opaque = client_ctx_alloc();
+    if (server->opaque == NULL) {
+        ERR_LOG("calloc()");
+        server->sm.event_trigger = SRV_EVENT_ERROR;
+        goto on_error;
+    }
+
     server->th_pool = thread_pool_create(MAX_WORKER_NUM);
     if (!server->th_pool){
         ERR_LOG("thread_pool_create()");
@@ -104,57 +111,43 @@ on_error:
     ERR_LOG("Could not construct server");
 }
 
-client_ctx_t *accept_connection(server_ctx_t *server) {
-    client_ctx_t *conn_ctx = (client_ctx_t *) calloc(1, sizeof(client_ctx_t));
-
-
-    if (!conn_ctx) {
-        server->sm.event_trigger = SRV_EVENT_RESET; 
-        return NULL;
-    }
-
-    socklen_t client_addr_len = sizeof(conn_ctx->address);
+void accept_connection(conn_job_arg_t *arg, server_ctx_t *server) {
+    char ip_buf[MAX_ADDR_LEN];
+    uint16_t port; 
+    socklen_t client_addr_len = sizeof(arg->address);
 
     server->sm.event_trigger = SRV_EVENT_CONNECTION_RECEIVED;
 
-    conn_ctx->fd = accept(server->fd, (struct sockaddr *) &conn_ctx->address, &client_addr_len);
+    arg->fd = accept(server->fd, (struct sockaddr *) &arg->address, &client_addr_len);
 
-    if (conn_ctx->fd == -1) {
+    if (arg->fd == -1) {
         ERR_LOG("accept()");
         if (errno == EINVAL)
             server->sm.event_trigger = SRV_EVENT_ERROR; 
         else
             server->sm.event_trigger = SRV_EVENT_RESET; 
-        
-        close(conn_ctx->fd);
-        free(conn_ctx);
-        return NULL;
+        return;
     }
 
-    if (inet_ntop(conn_ctx->address.ss_family,
-                  get_ip(&conn_ctx->address),
-                  conn_ctx->readable_format.ip, MAX_ADDR_LEN) == NULL) {
+    if (inet_ntop(arg->address.ss_family, get_ip(&arg->address), ip_buf, MAX_ADDR_LEN) == NULL) {
         ERR_LOG("inet_ntop()");
-        server->sm.event_trigger = SRV_EVENT_RESET;
-        close(conn_ctx->fd);
-        free(conn_ctx);
-        return NULL;
     }
 
-    conn_ctx->readable_format.port = ntohs(get_port(&conn_ctx->address));
+    port = ntohs(get_port(&arg->address));
 
-    printf("Received connection from %s:%u\n", conn_ctx->readable_format.ip, conn_ctx->readable_format.port);
-
-    return conn_ctx;
+    printf("Received connection from %s:%u\n", ip_buf, port);
 }
 
-void add_client_to_waiting_list(client_ctx_t *new_con, server_ctx_t *server) {
+void add_client_to_waiting_list(conn_job_arg_t *arg, server_ctx_t *server) {
     int rv;
-    rv = thread_pool_add_new_connection(server->th_pool, new_con);
+    rv = thread_pool_add_new_connection(server->th_pool, arg);
+    client_ctx_t *tmp_conn = NULL;
 
     if (rv != OK) {
-        send_service_unavailable(new_con);
-        destroy_connection(new_con);
+        tmp_conn = server->opaque;
+        tmp_conn->fd = arg->fd;
+        send_service_unavailable(tmp_conn);
+        destroy_connection(tmp_conn);
     }
     
     server->sm.event_trigger = SRV_EVENT_RESET;

@@ -1,4 +1,5 @@
 #include "conn-client.h"
+#include "common.h"
 #include "request-handler.h"
 #include "response-build.h"
 #include <pthread.h>
@@ -10,6 +11,43 @@ static size_t compute_response_size(http_resp_t *resp);
 static int send_headers(client_ctx_t *conn_ctx, char *buf, size_t total_size);
 static int send_file_response_body(client_ctx_t *conn_ctx, int file_fd, off_t file_size);
 static int send_mem_response_body(client_ctx_t *conn_ctx, char *buffer, size_t response_size);
+
+client_ctx_t *client_ctx_alloc(void) {
+    client_ctx_t *res = NULL;
+    res = (client_ctx_t *) calloc(1, sizeof(client_ctx_t));
+    if (res == NULL) {
+        ERR_LOG("calloc()");
+        return res;
+    }
+
+    res->parser = calloc(1, sizeof(http_parser_t));
+    if (res->parser == NULL) {
+        ERR_LOG("calloc()");
+        return res;
+    }
+
+    res->response = http_response_alloc();
+    if (res->response == NULL) {
+        ERR_LOG("http_response_alloc()");
+        return res;
+    }
+    return res;
+}
+
+void client_ctx_free(client_ctx_t *conn) {
+    if (!conn)
+        return;
+    if (conn->response) 
+        free(conn->response);
+    if (conn->parser) 
+        free(conn->parser);
+    free(conn);
+}
+
+void client_ctx_assign_fd_and_address(client_ctx_t *conn, int fd, struct sockaddr_storage *address) {
+    conn->fd = fd;
+    memcpy(&conn->address, address, sizeof(struct sockaddr_storage));
+}
 
 void receive_msg(client_ctx_t *conn_ctx) {
     ssize_t received_bytes = 0;
@@ -26,9 +64,8 @@ void receive_msg(client_ctx_t *conn_ctx) {
 }
 
 void parse_request(client_ctx_t *conn) {
-    conn->parser = (void*) calloc(1, sizeof(http_parser_t));
     if (!conn->parser) {
-        ERR_LOG("Could not allocate memory for parser");
+        ERR_LOG("Could not allocate memory for parser %lu", pthread_self());
         conn->sm.event_trigger = CONN_EVENT_ERROR;
         return;
     }
@@ -48,17 +85,17 @@ int process_request(client_ctx_t *conn) {
     rv = validate_http_version(req->version);
 
     if (rv != 0) {
-        handle_unsupported_version(&resp);
+        handle_unsupported_version(resp);
         goto done;
     }
 
     if (strcmp(req->method, "GET") == 0) {
-        rv = handle_get_req(&resp, req);
+        rv = handle_get_req(resp, req);
     } else if (strcmp(req->method, "POST") == 0) {
     } else if (strcmp(req->method, "HEAD") == 0) {
-        rv = handle_head_req(&resp, req);
+        rv = handle_head_req(resp, req);
     } else {
-        handle_unsupported_method(&resp, req->method);
+        handle_unsupported_method(resp, req->method);
     }
 
 done:
@@ -146,21 +183,28 @@ void destroy_connection(client_ctx_t *conn_ctx) {
 
     if (conn_ctx->parser) {
         ht_destroy(&conn_ctx->parser->req.headers);
-        free(conn_ctx->parser);
+        memset(conn_ctx->parser, 0, sizeof(http_parser_t));
     }
+
     if (conn_ctx->response) {
         ll_destroy(conn_ctx->response->headers, header_t , h, free(h->name), free(h->value));
-        if (conn_ctx->response->body_type == BODY_TYPE_MEM) {
-            free(conn_ctx->response->body.mem.data);
-        } else if (conn_ctx->response->body_type == BODY_TYPE_FILE){
-            close(conn_ctx->response->body.file.fd);
-        }
 
-        free(conn_ctx->response);
+        switch (conn_ctx->response->body_type) {
+            case BODY_TYPE_MEM:
+                free(conn_ctx->response->body.mem.data);
+                break;
+            case BODY_TYPE_FILE:
+                close(conn_ctx->response->body.file.fd);
+                break;
+            default:
+                ERR_LOG("Unknown Body Type");
+                break;
+        }
+        memset(conn_ctx->response, 0, sizeof(http_resp_t));
     }
 
     close(conn_ctx->fd);
-    free(conn_ctx);
+    memset(conn_ctx, 0, offsetof(client_ctx_t, parser)); // memset zero upto parser part (we do must not zero parser, response pointers)
 }
 
 static size_t compute_response_size(http_resp_t *resp) {
@@ -225,6 +269,6 @@ static int send_mem_response_body(client_ctx_t *conn_ctx, char *buffer, size_t r
 
 void send_service_unavailable(client_ctx_t *conn) {
     receive_msg(conn);
-    handle_service_unavailable(&conn->response);
+    handle_service_unavailable(conn->response);
     send_msg(conn);
 }

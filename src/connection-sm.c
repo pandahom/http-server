@@ -51,7 +51,7 @@ int handle_conn_states(void *arg) {
             case CONN_STATE_ERROR:
                 ERR_LOG("Encounter error on handling connection");
                 destroy_connection(conn_ctx);
-                goto return_val;
+                return FAIL;
             default:
                 break;
         }

@@ -1,11 +1,12 @@
 #include "thread.h"
-#include "connection-sm.h"
+#include "conn-client.h"
 #include "ds/queue.h"
 #include <pthread.h>
 #include <stdlib.h>
+#include <string.h>
 #include "common.h"
 
-#define MAX_ACCPETING_CONN 1024
+#define MAX_ACCEPTING_CONN 1024
 
 typedef struct client_ctx_s client_ctx_t;
 
@@ -21,6 +22,7 @@ typedef struct thread_pool_s {
 struct worker_s {
     pthread_t tid;
     thread_pool_t *pool; // pointer back to its pool
+    void *data;
 };
 
 static void *worker_run(void* arg);
@@ -36,7 +38,7 @@ thread_pool_t *thread_pool_create(size_t worker_num) {
         return NULL;
     }
     pool->worker_num = worker_num;
-    pool->queue = queue_create(MAX_ACCPETING_CONN);
+    pool->queue = queue_create(MAX_ACCEPTING_CONN, sizeof(conn_job_arg_t));
     if (!pool->queue) {
         free(pool->workers);
         free(pool);
@@ -53,6 +55,10 @@ int thread_pool_start(thread_pool_t *pool) {
     for (size_t i = 0; i < pool->worker_num; ++i) {
         worker = &pool->workers[i];
         worker->pool = pool;
+        worker->data = (void*) client_ctx_alloc();
+        if (worker->data == NULL) {
+            break;
+        }
 
         rv = pthread_create(&worker->tid, NULL, worker_run, worker);
         if (rv != 0)  {
@@ -79,6 +85,7 @@ void thread_pool_destroy(thread_pool_t *pool) {
     for (size_t i = 0; i < pool->running_workers_num ; ++i) {
         worker = &pool->workers[i];
         pthread_join(worker->tid, NULL);
+        client_ctx_free(worker->data);
     }
 
     queue_free(pool->queue);
@@ -87,18 +94,18 @@ void thread_pool_destroy(thread_pool_t *pool) {
 }
 
 int thread_pool_add_new_connection(thread_pool_t *pool, void *data) {
-    return queue_push(pool->queue, data);
+    return queue_push(pool->queue, data, sizeof(conn_job_arg_t));
 }
 
 static void *worker_run(void* arg) {
     worker_t *w = arg;
-    client_ctx_t *conn = NULL;
+    client_ctx_t *conn = w->data;
+    conn_job_arg_t out = {0};
     int rv = OK;
 
-    if (w == NULL) 
-        return NULL;
-
-    while ((conn = queue_pop(w->pool->queue)) != NULL) {
+    while (queue_pop(w->pool->queue, &out, sizeof(conn_job_arg_t)) == OK) {
+//        printf("Thread[%lu] is running\n", pthread_self());
+        client_ctx_assign_fd_and_address(conn, out.fd, &out.address);
         rv = handle_conn_states(conn);
         if (rv == FAIL) {
 

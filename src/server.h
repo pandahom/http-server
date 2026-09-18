@@ -14,10 +14,11 @@ typedef struct {
 
     thread_pool_t *th_pool;
     srv_sm_t sm;
+    void *opaque; // for now it is used for when the queue is full and we are going to return error 503
 } server_ctx_t;
 
 void construct_server(server_ctx_t  *server, in_port_t port, const char *ip_address, int backlog);
-client_ctx_t *accept_connection(server_ctx_t *server);
-void add_client_to_waiting_list(client_ctx_t *new_con, server_ctx_t *server);
+void accept_connection(conn_job_arg_t *arg, server_ctx_t *server);
+void add_client_to_waiting_list(conn_job_arg_t *arg, server_ctx_t *server);
 
 #endif
