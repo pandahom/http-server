@@ -5,6 +5,7 @@
 
 #include "path-handler.h"
 #include "response-build.h"
+#include "log.h"
 #include "common.h"
 #include "static-response-bodies/http_400.h"
 #include "static-response-bodies/http_404.h"
@@ -58,7 +59,7 @@ static const char* get_status_message(http_code_e code) {
 static int populate_status_line(http_resp_t *resp, http_code_e code, const char *version) {
     const char *phrase = get_status_message(code);
     if (phrase == NULL) {
-        ERR_LOG("No such status exist");
+        LOG_ERROR("No such status exist");
         return FAIL;
     }
 
@@ -139,7 +140,7 @@ static int populate_entity_headers(http_resp_t *resp, const char *content_type, 
 static int http_response_add_header(http_resp_t *resp, char *name, char *value) {
     header_t *new_header = (header_t *) calloc(1, sizeof(header_t));
     if (!new_header) {
-        ERR_LOG("Could not allocate for header_t");
+        LOG_ERROR("Could not allocate for header_t");
         return 1;
     }
     new_header->name = strdup(name);
@@ -165,7 +166,7 @@ static ssize_t http_response_add_body(http_resp_t *resp, const char *format, ...
 
     ssize_t body_len = vsnprintf(NULL, 0, format, copy_ap);
     if (body_len < 0) {
-        ERR_LOG("Could not compute response body length");
+        LOG_ERROR("Could not compute response body length");
         va_end(copy_ap);
         va_end(ap);
         return FAIL;
@@ -174,7 +175,7 @@ static ssize_t http_response_add_body(http_resp_t *resp, const char *format, ...
 
     resp->body.mem.data = (char *) calloc((size_t) body_len + 1, sizeof(char));
     if (!resp->body.mem.data) {
-        ERR_LOG("Could not allocate for body");
+        LOG_ERROR("Could not allocate for body");
         va_end(ap);
         return FAIL;
     }
@@ -198,13 +199,13 @@ static int build_http_response_file_impl(http_resp_t* resp, http_code_e code, co
 
     rv = stat(path, &st);
     if (rv == FAIL) {
-        ERR_LOG("FATA ERROR ");
+        LOG_ERROR("FATA ERROR ");
         return FAIL;
     }
 
     rv = populate_status_line(resp, code, version);
     if (rv == FAIL) {
-        ERR_LOG("Populating response status line");
+        LOG_ERROR("Populating response status line");
         return FAIL;
     }
 
@@ -212,7 +213,7 @@ static int build_http_response_file_impl(http_resp_t* resp, http_code_e code, co
 
     rv = populate_entity_headers(resp, content_type, st.st_size);
     if (rv == FAIL) {
-        ERR_LOG("Populating entity headers");
+        LOG_ERROR("Populating entity headers");
         return FAIL;
     }
 
@@ -222,7 +223,7 @@ static int build_http_response_file_impl(http_resp_t* resp, http_code_e code, co
     fd = open(path, O_RDONLY);
     if (fd == -1) {
         build_http_response_default_page(resp, STATUS_Not_Found, version, path);
-        ERR_LOG("FATA ERROR");
+        LOG_ERROR("FATA ERROR");
         return FAIL;
     }
 

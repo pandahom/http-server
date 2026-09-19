@@ -13,6 +13,7 @@ DS 				:= $(DS_DIR)/linked-list.c \
 
 SRC 			:= 	$(SRC_DIR)/server-sm.c \
 					$(SRC_DIR)/main.c   \
+				   $(SRC_DIR)/log.c \
 				   $(SRC_DIR)/server.c \
 				   $(SRC_DIR)/conn-client.c \
 				   $(SRC_DIR)/connection-sm.c \
@@ -22,6 +23,7 @@ SRC 			:= 	$(SRC_DIR)/server-sm.c \
 				   $(SRC_DIR)/thread.c 
 
  HEADER_FILES	:= $(SRC_DIR)/common.h \
+				   $(SRC_DIR)/log.h \
 				   $(SRC_DIR)/server-sm.h \
 				   $(SRC_DIR)/server.h \
 				   $(SRC_DIR)/connection-sm.h \

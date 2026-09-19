@@ -1,5 +1,6 @@
 #include "connection-sm.h"
 #include "conn-client.h"
+#include "log.h"
 #include <pthread.h>
 
 
@@ -49,7 +50,7 @@ int handle_conn_states(void *arg) {
                 release_connection_resources(conn_ctx);
                 goto return_val;
             case CONN_STATE_ERROR:
-                ERR_LOG("Encounter error on handling connection");
+                LOG_ERROR("Encounter error on handling connection");
                 release_connection_resources(conn_ctx);
                 return FAIL;
             default:

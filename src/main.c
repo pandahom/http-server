@@ -1,14 +1,19 @@
 #include "server-sm.h"
 #include "common.h"
 #include "request-handler.h"
+#include "log.h"
 #include <signal.h>
 #include <sys/stat.h>
 
 #define DEFAULT_IP "127.0.0.4"
 #define DEFAULT_PORT 8080
 
+                                            
 static void print_usage(const char *program_name) {
+#define DEFAULT         "\033[0m"
+#define BOLD         "\033[1m"
     fprintf(stderr, BOLD "Usage: %s [-i ip_address] [-p port] [-d document_root]\n", program_name);
+#undef BOLD
     fprintf(stderr, "  -i ip_address    IP address to listen on (default: %s)\n", DEFAULT_IP);
     fprintf(stderr, "  -p port          TCP port to listen on (default: %d)\n", DEFAULT_PORT);
     fprintf(stderr, "  -d document_root Directory to serve files from (default: Working Directory)\n");
@@ -53,14 +58,14 @@ int main(int argc, char **argv) {
         switch (opt) {
             case 'i':
                 if (!validate_ip_address(optarg)) {
-                    ERR_LOG("Invalid IP address: %s", optarg);
+                    LOG_ERROR("Invalid IP address: %s", optarg);
                     return FAIL;
                 }
                 ip_address = optarg;
                 break;
             case 'p':
                 if (parse_port(optarg, &port) == FAIL) {
-                    ERR_LOG("Invalid port: %s", optarg);
+                    LOG_ERROR("Invalid port: %s", optarg);
                     return FAIL;
                 }
                 break;
@@ -71,30 +76,35 @@ int main(int argc, char **argv) {
                 print_usage(program_name);
                 return OK;
             case '?':
-                ERR_LOG("Unknown Option: -%c",optopt);
+                LOG_ERROR("Unknown Option: -%c",optopt);
                 print_usage(program_name);
                 return FAIL;
             case ':':
-                ERR_LOG("Missing Argument for: -%c", optopt);
+                LOG_ERROR("Missing Argument for: -%c", optopt);
                 print_usage(program_name);
                 return FAIL;
         }
     }
 
     if (optind < argc) {
-        ERR_LOG("Unexpected argument: %s", argv[optind]);
+        LOG_ERROR("Unexpected argument: %s", argv[optind]);
         print_usage(program_name);
         return FAIL;
     }
 
     if (!validate_document_root(document_root)) {
-        ERR_LOG("Invalid document root: %s", document_root);
+        LOG_ERROR("Invalid document root: %s", document_root);
         print_usage(program_name);
         return FAIL;
     }
 
-    set_document_root(document_root);
 
     signal(SIGPIPE, SIG_IGN);
-    return handle_srv_states(ip_address, port);
+
+    log_init(false, NULL);
+    set_document_root(document_root);
+    handle_srv_states(ip_address, port);
+
+    log_final();
+    return 0;
 }

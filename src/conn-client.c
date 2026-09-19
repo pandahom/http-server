@@ -2,6 +2,7 @@
 #include "common.h"
 #include "request-handler.h"
 #include "response-build.h"
+#include "log.h"
 #include <pthread.h>
 #include <errno.h>
 #include <stdio.h>
@@ -27,19 +28,19 @@ client_ctx_t *client_ctx_alloc(void) {
     client_ctx_t *res = NULL;
     res = (client_ctx_t *) calloc(1, sizeof(client_ctx_t));
     if (res == NULL) {
-        ERR_LOG("calloc()");
+        LOG_ERROR("calloc()");
         return res;
     }
 
     res->parser = http_parser_alloc();
     if (res->parser == NULL) {
-        ERR_LOG("http_parser_alloc()");
+        LOG_ERROR("http_parser_alloc()");
         return res;
     }
 
     res->response = http_response_alloc();
     if (res->response == NULL) {
-        ERR_LOG("http_response_alloc()");
+        LOG_ERROR("http_response_alloc()");
         return res;
     }
     return res;
@@ -79,9 +80,9 @@ void receive_msg(client_ctx_t *conn_ctx) {
     received_bytes = recv(conn_ctx->fd, conn_ctx->received_msg, MAX_RECEIVE_BYTES, 0);
     if (received_bytes == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
-            ERR_LOG("recv() timed out after %d seconds", CLIENT_RECV_TIMEOUT_SEC);
+            LOG_ERROR("recv() timed out after %d seconds", CLIENT_RECV_TIMEOUT_SEC);
         else
-            ERR_LOG("recv() returns -1");
+            LOG_ERROR("recv() returns -1");
         conn_ctx->sm.event_trigger = CONN_EVENT_ERROR;
         return;
     }
@@ -90,7 +91,7 @@ void receive_msg(client_ctx_t *conn_ctx) {
 
 void parse_request(client_ctx_t *conn) {
     if (!conn->parser) {
-        ERR_LOG("Could not allocate memory for parser %lu", pthread_self());
+        LOG_ERROR("Could not allocate memory for parser %lu", pthread_self());
         conn->sm.event_trigger = CONN_EVENT_ERROR;
         return;
     }
@@ -174,7 +175,7 @@ void send_msg(client_ctx_t *conn_ctx) {
         case BODY_TYPE_MEM:
             rv = send_mem_response_body(conn_ctx, resp->body.mem.data, resp->body.mem.len);
             if (rv == FAIL) {
-                ERR_LOG("Sending response body buffer failed");
+                LOG_ERROR("Sending response body buffer failed");
                 conn_ctx->sm.event_trigger = CONN_EVENT_ERROR;
                 goto cleanup;
             }
@@ -187,7 +188,7 @@ void send_msg(client_ctx_t *conn_ctx) {
             */
             rv = send_file_response_body(conn_ctx, resp->body.file.fd, resp->body.file.len);
             if (rv == FAIL) {
-                ERR_LOG("Sending response file failed");
+                LOG_ERROR("Sending response file failed");
                 conn_ctx->sm.event_trigger = CONN_EVENT_ERROR;
                 goto cleanup;
             }
@@ -224,7 +225,7 @@ void release_connection_resources(client_ctx_t *conn_ctx) {
             case BODY_TYPE_NONE:
                 break;
             default:
-                ERR_LOG("Unknown Body Type");
+                LOG_ERROR("Unknown Body Type");
                 break;
         }
     }
