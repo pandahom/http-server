@@ -4,24 +4,27 @@
 
 #define LOG_MAX_QUEUE_ENTRY_NUM 512
 
-#define DEFAULT_STR_SIZE 256
+#define DEFAULT_STR_SIZE 1024
 
 #define COLOR_RESET  "\033[0m"
-#define COLOR_BLACK  "\033[30m"
-#define COLOR_GREEN  "\033[32m"
-#define COLOR_RED    "\033[31m"
-#define COLOR_YELLOW "\033[33m"
-#define COLOR_BLUE   "\033[34m"
+#define COLOR_BLACK  "\033[1;30m"
+#define COLOR_GREEN  "\033[1;32m"
+#define COLOR_RED    "\033[1;31m"
+#define COLOR_YELLOW "\033[1;33m"
+#define COLOR_BLUE   "\033[1;34m"
+#define COLOR_GRAY   "\033[1;37m"
 
 extern _Thread_local uint8_t g_worker_id;
 static struct {
     FILE *fp;
-    struct {
-        int file:1;
-        int func:1;
-        int line:1;
-        int level:1;
-    } opt; 
+    union {
+        struct {
+            uint8_t file_line:1;
+            uint8_t func:1;
+            uint8_t level:1;
+        }; 
+        uint8_t flag;
+    };
 
     const char *log_file;
     pthread_t tid;
@@ -41,46 +44,96 @@ typedef struct {
 } log_entry_t;
 
 static void *logger_thread(void *);
-static const char *get_level_str(log_level_e level);
-static const char *get_color_by_level(log_level_e level);
-static char* timespec_to_readable_format(char *buf, struct timespec *ts);
+static int string_append(char *buf, size_t size, const char *format, va_list ap);
+static char *get_color_by_level(log_level_e level);
+static char *log_level(char *p, char *last, log_level_e level);
+static char *log_file(char *p, char *last, const char* file, int line);
+static char *log_func(char *p, char *last, const char* func);
+static char *log_message(char *p, char *last, char* message);
+static char* log_timestamp(char *p, char *last, struct timespec *ts);
+ 
+static char* string_add(char *buf, char *last, const char *format, ...) {
+    int r = -1;
+    size_t max_writable_len = last - buf;
+    va_list ap;
 
-static char* timespec_to_readable_format(char *buf, struct timespec *ts) {
-    struct tm *tm_info = localtime(&ts->tv_sec);
-    strftime(buf, 64, "%Y-%m-%d %H:%M:%S", tm_info);
-    return buf;
+    va_start(ap, format);
+    if (buf < last)
+        r = string_append(buf, max_writable_len, format, ap);
+    va_end(ap);
+
+    return buf + r;
+}
+static int string_append(char *buf, size_t size, const char *format, va_list ap) {
+    int r = 0;
+
+    r = vsnprintf(buf, size, format, ap);
+    buf[size - 1] = '\0'; // To ensure that the buffer is terminated 
+
+    return r;
 }
 
-static const char *get_color_by_level(log_level_e level) {
+static char* log_timestamp(char *p, char *last, struct timespec *ts) {
+    struct tm *tm_info = localtime(&ts->tv_sec);
+    char nowstr[64];
+    strftime(nowstr, sizeof(nowstr), "%Y-%m-%d %H:%M:%S", tm_info);
+    p = string_add(p, last, "%s%s%s: ", COLOR_GREEN, nowstr, COLOR_RESET);
+    return p;
+}
+
+static char *get_color_by_level(log_level_e level) {
     switch (level) {
         case LEVEL_INFO:
             return COLOR_GREEN;
         case LEVEL_ERROR:
             return COLOR_RED;
         case LEVEL_DEBUG:
-            return COLOR_YELLOW;
+            return COLOR_GRAY;
         case LEVEL_WARN:
             return COLOR_BLUE;
     }
     return COLOR_RESET;
 }
 
-static const char *get_level_str(log_level_e level) {
+static char *log_level(char *p, char *last, log_level_e level) {
     const char *levels[] = {
         [LEVEL_INFO]  = "INFO",
         [LEVEL_ERROR] = "ERROR",
         [LEVEL_WARN]  = "WARN",
         [LEVEL_DEBUG] = "DEBUG"
     };
+    const char *color = NULL;
+    const char *chosen = NULL;
     
     for (size_t i = 0; i < sizeof(levels) / sizeof(levels[0]); ++i)
         if (level == i)
-            return levels[i];
+            chosen = levels[i];
+
+    if (chosen == NULL) 
+        return p;
         
-    return "UNKNOWN";
+    color = get_color_by_level(level);
+    p = string_add(p, last, "%s[%s]%s ", color, chosen, COLOR_RESET);
+    return p;
 }
 
-int log_init(bool dbug, const char *log_file) {
+static char *log_file(char *p, char *last, const char* file, int line) {
+    p = string_add(p, last, "(%s:%d) ", file, line);
+    return p;
+}
+
+
+static char *log_func(char *p, char *last, const char* func) {
+    p = string_add(p, last, "%s%s()%s ", COLOR_YELLOW, func, COLOR_RESET);
+    return p;
+}
+
+static char *log_message(char *p, char *last, char* message) {
+    p = string_add(p, last, "%s ", message);
+    return p;
+}
+
+int log_ctx_init(bool dbug, const char *log_file, uint8_t flag) {
     logger_ctx.queue = queue_create(LOG_MAX_QUEUE_ENTRY_NUM, sizeof(log_entry_t));
     if (!logger_ctx.queue)
         return FAIL;
@@ -90,11 +143,12 @@ int log_init(bool dbug, const char *log_file) {
         logger_ctx.fp = fopen(logger_ctx.log_file, "a");
     }
     logger_ctx.debug_mode = dbug;
+    logger_ctx.flag = flag;
     pthread_create(&logger_ctx.tid, NULL, logger_thread, NULL);
     return OK;
 }
 
-void log_final(void) {
+void log_ctx_final(void) {
     queue_close(logger_ctx.queue);
     if (logger_ctx.fp)
         fclose(logger_ctx.fp);
@@ -105,8 +159,10 @@ void log_write(log_level_e level, const char *file, const char *func, int line, 
     if (level == LEVEL_DEBUG && !logger_ctx.debug_mode)
         return;
 
+    int r = 0;
+
     log_entry_t entry = {
-        .caller_worker_id = g_worker_id,
+        .caller_worker_id = 0, // TODO
         .file             = file,
         .func             = func,
         .line             = line,
@@ -118,9 +174,10 @@ void log_write(log_level_e level, const char *file, const char *func, int line, 
 
     va_start(ap, fmt);
 
-    vsnprintf(entry.msg, DEFAULT_STR_SIZE, fmt, ap);
-    queue_push(logger_ctx.queue, &entry, sizeof(entry));
-
+    r = vsnprintf(entry.msg, DEFAULT_STR_SIZE, fmt, ap);
+    if (r < DEFAULT_STR_SIZE && r != -1)
+        queue_push(logger_ctx.queue, &entry, sizeof(entry));
+    
     va_end(ap);
 }
 
@@ -128,28 +185,25 @@ static void *logger_thread(void *data) {
     (void) data;
 
     log_entry_t out = {0};
-    const char *level_name   = NULL;
-    const char *level_color  = NULL;
-    char time_str_buf[64];
-    int n = 0;
+    char line[DEFAULT_STR_SIZE] = {0};
+    char *p = NULL, *last = NULL; 
 
     while (queue_pop(logger_ctx.queue, &out, sizeof(out)) != 1) {
-        char line[DEFAULT_STR_SIZE + 20] = {0};
-        level_name = get_level_str(out.level);
-        level_color =  get_color_by_level(out.level);
+        p = line;
+        last = line + DEFAULT_STR_SIZE;
 
-        n = snprintf(line, sizeof(line), "%s %s[%s]%s %s::%s:%d:th(%u)  %s\n", 
-                timespec_to_readable_format(time_str_buf, &out.ts), 
-                level_color, 
-                level_name,
-                COLOR_RESET, 
-                out.file, 
-                out.func, 
-                out.line, out.caller_worker_id,
-                out.msg); 
+        p = log_timestamp(p, last, &out.ts);
 
-        if (logger_ctx.fp) fwrite(line, sizeof(char), n, logger_ctx.fp);
-        fwrite(line, sizeof(char), n, stdout);
+        if (logger_ctx.level) p = log_level(p, last, out.level);
+
+        p = log_message(p, last, out.msg);
+
+        if (logger_ctx.file_line) p = log_file(p, last, out.file, out.line);
+        if (logger_ctx.func) p = log_func(p, last, out.func);
+        p = string_add(p, last, "\n");
+
+        if (logger_ctx.fp) fwrite(line, sizeof(char), p - line, logger_ctx.fp);
+        fwrite(line, sizeof(char), p - line, stdout);
     }
 
     return NULL;
@@ -161,5 +215,6 @@ static void *logger_thread(void *data) {
 #undef COLOR_GREEN
 #undef COLOR_YELLOW
 #undef COLOR_BLUE
+#undef COLOR_GRAY
 #undef LOG_MAX_QUEUE_ENTRY_NUM
 #undef DEFAULT_STR_SIZE
