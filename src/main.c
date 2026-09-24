@@ -101,10 +101,10 @@ int main(int argc, char **argv) {
 
     signal(SIGPIPE, SIG_IGN);
 
-    log_init(false, NULL);
+    log_ctx_init(true, NULL, LOG_OPT_ALL); // TODO: user must provide arguments
     set_document_root(document_root);
     handle_srv_states(ip_address, port);
 
-    log_final();
+    log_ctx_final();
     return 0;
 }
