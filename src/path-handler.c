@@ -1,7 +1,8 @@
 #include "path-handler.h"
+#include "log.h"
 
 #include <dirent.h>
-#include <sys/stat.h>
+#include <errno.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,7 +19,7 @@ int list_dir(char *path, char *buffer) {
     n = scandir(path, &entries, dir_filter, NULL);
 
     if (n < 0) {
-        perror("scandir");
+        LOG_ERROR("scandir() failed with error: %s", strerror(errno));
         return 1;
     }
 

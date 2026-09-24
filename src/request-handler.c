@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "request-handler.h"
 #include "response-build.h"
+#include "log.h"
 #include "ds/ht.h"
 
 static const char *DOC_ROOT = NULL;
@@ -124,7 +125,7 @@ int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len
             case MSG_STATE_REQUEST_LINE:
                 if (chr == ' ') {
                     if (parser->token_len == 0) {
-                        fprintf(stderr, "malformed request: leading space\n");
+                        LOG_ERROR("malformed request: leading space");
                         parser->state = MSG_STATE_ERROR;
                         return -1;
                     }
@@ -141,6 +142,7 @@ int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len
                     parser->token_len = 0;
 
                 } else if (chr == '\n') {
+                    LOG_DEBUG("Done processing Request-Line");
                     parser->state = MSG_STATE_HEADER_NAME;
 
                 } else {
@@ -153,11 +155,12 @@ int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len
                     parser->token[parser->token_len] = '\0';
                     strncpy(parser->current_header_name, parser->token, parser->token_len + 1);
 
-
+                    LOG_DEBUG("Done processing a header name");
                     parser->state = MSG_STATE_HEADER_VALUE;
                     parser->token_len = 0;
 
                 } else if (chr == '\r') {
+                    LOG_DEBUG("Done processing a headers");
                     parser->state = MSG_STATE_BODY;
                     
                 } else if (chr == '\n') {
@@ -173,8 +176,10 @@ int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len
                 } else if (chr == '\r') {
                     parser->token[parser->token_len] = '\0';
                     if (ht_insert(&req->headers, parser->current_header_name, parser->token) == -1) {
+                        LOG_ERROR("ht_insert failed");
                         parser->state = MSG_STATE_ERROR;
                     } else {
+                        LOG_DEBUG("Done processing a header value");
                         parser->state = MSG_STATE_HEADER_NAME;
                         parser->token_len = 0;
                     }
@@ -184,6 +189,7 @@ int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len
                 break;
 
             case MSG_STATE_BODY:
+                LOG_DEBUG("done processing request (HTTP request body remained unprocessed, not implemented yet)");
                 return 0;
                 if (chr == '\n' && parser->token_len == 0)
                 {
@@ -195,7 +201,7 @@ int request_state_handler(http_parser_t *parser, const char *raw_msg, size_t len
             case MSG_STATE_ERROR:
                 break;
             default:
-                fprintf(stderr, "unknown parser state: %d\n", parser->state);
+                LOG_ERROR("unknown parser state: %d", parser->state);
                 parser->state = MSG_STATE_ERROR;
                 return 1;
         }

@@ -1,4 +1,5 @@
 #include "server.h"
+#include "log.h"
 #include <pthread.h>
 
 #define state_transit(sm_ptr)\
@@ -22,9 +23,9 @@ static const srv_state_e transition_table_server[SRV_STATE_COUNT][SRV_EVENT_COUN
 static void on_error_or_shutdown_server(server_ctx_t *server, srv_state_e state) {
     close(server->fd);
     if (state == SRV_STATE_ERROR)
-        printf("Terminating Program (Waiting for threads to be finished) ....\n");
+        LOG_ERROR("Terminating Program (Waiting for threads to be finished)");
     else if (state == SRV_STATE_SHUTTING_DOWN)
-        printf("Shutdown requested, waiting for in-flight requests to finish ....\n");
+        LOG_INFO("Shutdown requested, waiting for in-flight requests to finish");
 
     thread_pool_destroy(server->th_pool);
     client_ctx_free(server->opaque);

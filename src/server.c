@@ -46,7 +46,7 @@ static struct sockaddr_storage populate_server_address(in_port_t port, const cha
         v6->sin6_port = htons(port);
         v6->sin6_family = AF_INET6;
     } else {
-        LOG_ERROR("RIDI");
+        LOG_ERROR("failed to populate server address");
         exit(FAIL);
     }
 
@@ -82,58 +82,51 @@ void construct_server(server_ctx_t  *server, in_port_t port, const char *ip_addr
 
     server->fd = socket(server->address.ss_family, SOCK_STREAM, IPPROTO_TCP);
     if (server->fd == -1) {
-        LOG_ERROR("socket()");
         server->sm.event_trigger = SRV_EVENT_ERROR;
         goto on_error;
     }
 
     rv = setsockopt(server->fd, SOL_SOCKET, SO_REUSEADDR, &reuse,  (socklen_t)sizeof(reuse));
     if (rv == -1) {
-        LOG_ERROR("setsockopt()");
         server->sm.event_trigger = SRV_EVENT_ERROR;
         goto on_error;
     }
 
     rv = bind(server->fd, (struct sockaddr *)&server->address, sizeof(server->address));
     if (rv == -1) {
-        LOG_ERROR("bind()");
         server->sm.event_trigger = SRV_EVENT_ERROR;
         goto on_error;
     }
 
     rv = listen(server->fd, server->backlog);
     if (rv == -1) {
-        LOG_ERROR("listen()");
         server->sm.event_trigger = SRV_EVENT_ERROR;
         goto on_error;
     }
 
     server->opaque = client_ctx_alloc();
     if (server->opaque == NULL) {
-        LOG_ERROR("calloc()");
         server->sm.event_trigger = SRV_EVENT_ERROR;
         goto on_error;
     }
 
     server->th_pool = thread_pool_create(MAX_WORKER_NUM);
     if (!server->th_pool){
-        LOG_ERROR("thread_pool_create()");
         server->sm.event_trigger = SRV_EVENT_ERROR;
         goto on_error;
     }
 
     rv = thread_pool_start(server->th_pool);
     if (rv != OK) {
-        LOG_ERROR("thread_pool_create()");
         server->sm.event_trigger = SRV_EVENT_ERROR;
         goto on_error;
     }
 
-    printf("Server listening on %s:%u ....\n", ip_address, port);
+    LOG_DEBUG("Server listening on %s:%u ....", ip_address, port);
     return;
 
 on_error:
-    LOG_ERROR("Could not construct server");
+    LOG_ERROR("failed to construct server with error: %s", strerror(errno));
 }
 
 void accept_connection(conn_job_arg_t *arg, server_ctx_t *server) {
@@ -155,7 +148,7 @@ void accept_connection(conn_job_arg_t *arg, server_ctx_t *server) {
             // interrupted by a signal we don't need to shut down for; just retry
             server->sm.event_trigger = SRV_EVENT_ERROR;
         else {
-            LOG_ERROR("accept()");
+            LOG_ERROR("%s", strerror(errno));
             server->sm.event_trigger = SRV_EVENT_RESET;
         }
         return;
@@ -163,11 +156,11 @@ void accept_connection(conn_job_arg_t *arg, server_ctx_t *server) {
 
     struct timeval recv_timeout = { .tv_sec = CLIENT_RECV_TIMEOUT_SEC, .tv_usec = 0 };
     if (setsockopt(arg->fd, SOL_SOCKET, SO_RCVTIMEO, &recv_timeout, sizeof(recv_timeout)) == -1) {
-        LOG_ERROR("setsockopt()");
+        LOG_WARN("setsockopt failed with error: %s", strerror(errno));
     }
 
     if (inet_ntop(arg->address.ss_family, get_ip(&arg->address), ip_buf, MAX_ADDR_LEN) == NULL) {
-        LOG_ERROR("inet_ntop()");
+        LOG_WARN("inet_ntop failed with error: %s", strerror(errno));
     }
 
     port = ntohs(get_port(&arg->address));

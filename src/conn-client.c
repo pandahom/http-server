@@ -91,7 +91,7 @@ void receive_msg(client_ctx_t *conn_ctx) {
 
 void parse_request(client_ctx_t *conn) {
     if (!conn->parser) {
-        LOG_ERROR("Could not allocate memory for parser %lu", pthread_self());
+        LOG_ERROR("failed to allocate memory for parser %lu", pthread_self());
         conn->sm.event_trigger = CONN_EVENT_ERROR;
         return;
     }

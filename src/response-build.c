@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "path-handler.h"
 #include "response-build.h"
@@ -166,7 +167,7 @@ static ssize_t http_response_add_body(http_resp_t *resp, const char *format, ...
 
     ssize_t body_len = vsnprintf(NULL, 0, format, copy_ap);
     if (body_len < 0) {
-        LOG_ERROR("Could not compute response body length");
+        LOG_ERROR("failed to compute response body length");
         va_end(copy_ap);
         va_end(ap);
         return FAIL;
@@ -175,7 +176,7 @@ static ssize_t http_response_add_body(http_resp_t *resp, const char *format, ...
 
     resp->body.mem.data = (char *) calloc((size_t) body_len + 1, sizeof(char));
     if (!resp->body.mem.data) {
-        LOG_ERROR("Could not allocate for body");
+        LOG_ERROR("failed to allocate memory for response body");
         va_end(ap);
         return FAIL;
     }
@@ -199,13 +200,13 @@ static int build_http_response_file_impl(http_resp_t* resp, http_code_e code, co
 
     rv = stat(path, &st);
     if (rv == FAIL) {
-        LOG_ERROR("FATA ERROR ");
+        LOG_ERROR("stat failed with error: %s", strerror(errno));
         return FAIL;
     }
 
     rv = populate_status_line(resp, code, version);
     if (rv == FAIL) {
-        LOG_ERROR("Populating response status line");
+        LOG_ERROR("failed to populate status-line");
         return FAIL;
     }
 
@@ -213,7 +214,7 @@ static int build_http_response_file_impl(http_resp_t* resp, http_code_e code, co
 
     rv = populate_entity_headers(resp, content_type, st.st_size);
     if (rv == FAIL) {
-        LOG_ERROR("Populating entity headers");
+        LOG_ERROR("failed to populate response headers");
         return FAIL;
     }
 
@@ -223,7 +224,7 @@ static int build_http_response_file_impl(http_resp_t* resp, http_code_e code, co
     fd = open(path, O_RDONLY);
     if (fd == -1) {
         build_http_response_default_page(resp, STATUS_Not_Found, version, path);
-        LOG_ERROR("FATA ERROR");
+        LOG_ERROR("open() failed with error %s", strerror(errno));
         return FAIL;
     }
 

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
+#include "log.h"
 
 #define MAX_ACCEPTING_CONN 1024
 
@@ -62,7 +63,7 @@ int thread_pool_start(thread_pool_t *pool) {
 
         rv = pthread_create(&worker->tid, NULL, worker_run, worker);
         if (rv != 0)  {
-            ERR_LOG("Could not create worker [%zu]", i + 1);
+            LOG_ERROR("Could not create worker [%zu]", i + 1);
             break;
         }
         pool->running_workers_num = i + 1;
@@ -104,7 +105,6 @@ static void *worker_run(void* arg) {
     int rv = OK;
 
     while (queue_pop(w->pool->queue, &out, sizeof(conn_job_arg_t)) == OK) {
-//        printf("Thread[%lu] is running\n", pthread_self());
         client_ctx_assign_fd_and_address(conn, out.fd, &out.address);
         rv = handle_conn_states(conn);
         if (rv == FAIL) {
